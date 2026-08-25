@@ -37,10 +37,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Use DATABASE_URL if set (for CI), otherwise SQLite for local development
 DATABASES = {
     "default": dj_database_url.config(
-        default=os.getenv(
-            "DATABASE_URL",
-            "sqlite:///" + str(BASE_DIR / 'db.sqlite3'),
-        ),
+        default="sqlite:///" + str(BASE_DIR / 'db.sqlite3'),
         conn_max_age=600,
         conn_health_checks=True,
     )
