@@ -116,7 +116,7 @@ erDiagram
 
     DEAD_LETTER_QUEUE {
         bigint id PK
-        uuid job_id FK (OneToOne)
+        uuid job_id FK
         text error_message
         string failure_reason
         int retry_count
