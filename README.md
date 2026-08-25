@@ -11,9 +11,10 @@ A production-ready distributed job scheduling platform built with Django and Pos
 - **Dead Letter Queue**: Automatic DLQ for permanently failed jobs with manual retry
 - **Worker Management**: Heartbeat monitoring, graceful shutdown, dead worker recovery
 - **Real-time Dashboard**: Live metrics, job explorer, execution logs, queue health
-- **Workflow Dependencies**: Job dependency chains
+- **Workflow Dependencies**: Job dependency chains (DAG)
 - **Rate Limiting**: Per-endpoint rate limiting rules
 - **OpenAPI Documentation**: Auto-generated Swagger/ReDoc
+- **Web UI**: Full CRUD for Projects, Queues, Jobs, Workers, Scheduled Jobs, Batch Jobs, DLQ
 
 ## Architecture
 
@@ -91,6 +92,27 @@ python manage.py run_worker --project_key=your-api-key --concurrency=5 --queues=
 - API Docs (Swagger): http://localhost:8000/api/docs/
 - API Docs (ReDoc): http://localhost:8000/api/redoc/
 - OpenAPI Schema: http://localhost:8000/api/schema/
+
+## Web UI Pages
+
+The following web UI pages are available for managing the system:
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Dashboard | `/` | Real-time metrics, queue health, worker status, recent jobs |
+| Job Explorer | `/jobs/explorer/` | Search, filter, paginate jobs; view execution logs |
+| Projects | `/projects/` | List, create, edit projects |
+| Project Detail | `/projects/<uuid>/` | View project details, queues, create queues |
+| Queues | `/projects/<uuid>/queues/` | List queues for a project |
+| Queue Detail | `/queues/<uuid>/` | View queue stats, jobs, pause/resume |
+| Job Detail | `/jobs/<uuid>/` | View job details, execution history, logs, retry/cancel |
+| Workers | `/workers/` | List workers, status, heartbeat, current jobs |
+| Scheduled Jobs | `/scheduled/` | List, create, edit, activate/deactivate cron jobs |
+| Batch Jobs | `/jobs/batch/` | Submit and track batch jobs |
+| Dead Letter Queue | `/dlq/` | View failed jobs, retry from DLQ |
+| API Docs (Swagger) | `/api/docs/` | Interactive Swagger UI |
+| API Docs (ReDoc) | `/api/redoc/` | ReDoc documentation |
+| OpenAPI Schema | `/api/schema/` | Raw OpenAPI 3.0 schema |
 
 ## API Usage
 
@@ -228,6 +250,70 @@ curl -X POST http://localhost:8000/api/workers/heartbeat/ \
   -d '{"worker_id": "worker-uuid"}'
 ```
 
+## Web UI Features
+
+### Dashboard (`/`)
+Real-time metrics with charts:
+- Throughput (jobs/min)
+- Job status distribution
+- Queue health (active/paused)
+- Worker load (current jobs / capacity)
+- Recent jobs table
+
+### Job Explorer (`/jobs/explorer/`)
+- Filter by status, queue, date range
+- Pagination with configurable page size
+- Click any job to view detailed modal with:
+  - Job info (status, queue, retries, backoff)
+  - Payload (formatted JSON)
+  - Execution history with status, duration, error messages
+  - Execution logs (DEBUG/INFO/WARNING/ERROR with timestamps)
+  - Retry/Cancel buttons for failed/queued jobs
+
+### Projects (`/projects/`)
+- List all projects with queue/job counts
+- Create new project (generates API key)
+- View project detail with queue list
+- Edit project name/active status
+
+### Queues
+- List queues with priority, concurrency, status
+- Pause/resume queues
+- View queue statistics (jobs by status)
+- Edit queue settings (priority, concurrency, retry policy)
+
+### Jobs
+- List with filters (status, queue, date range)
+- Detail view with execution history and logs
+- Retry failed/DLQ jobs
+- Cancel pending jobs
+
+### Workers
+- List all workers with status, current jobs, capacity
+- Last heartbeat timestamp
+
+### Scheduled Jobs
+- List with cron expression, next run time, active status
+- Create/edit with cron expression validator
+- Activate/deactivate toggle
+- Automatic job creation via worker's scheduled job processor
+
+### Batch Jobs
+- Submit multiple jobs in one API call
+- Track aggregate progress (completed/failed/total)
+- View individual job statuses
+
+### Dead Letter Queue (DLQ)
+- List all permanently failed jobs
+- View error message, failure reason, retry count
+- One-click retry from DLQ
+
+### Workers Management
+- Register workers via API
+- Heartbeat endpoint for health monitoring
+- Automatic dead worker detection (5 min timeout)
+- Orphaned job recovery (CLAIMED/RUNNING → QUEUED)
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -244,22 +330,35 @@ curl -X POST http://localhost:8000/api/workers/heartbeat/ \
 distributed_job_scheduler/
 ├── scheduler/                    # Main Django app
 │   ├── management/commands/      # Custom management commands
-│   │   └── run_worker.py         # Worker daemon
+│   │   ├── run_worker.py         # Worker daemon
+│   │   └── seed_demo.py          # Demo data seeder
 │   ├── migrations/               # Database migrations
 │   ├── templates/scheduler/      # HTML templates
+│   │   ├── base.html             # Base template with sidebar
 │   │   ├── dashboard.html        # Main dashboard
-│   │   └── job_explorer.html     # Job search/filter UI
+│   │   ├── job_explorer.html     # Job search/filter UI
+│   │   ├── projects/             # Project CRUD templates
+│   │   ├── queues/               # Queue CRUD templates
+│   │   ├── jobs/                 # Job detail, batch templates
+│   │   ├── workers/              # Worker list template
+│   │   ├── scheduled/            # Scheduled job CRUD templates
+│   │   └── dlq/                  # DLQ list template
 │   ├── models.py                 # Database models
 │   ├── views.py                  # API views
+│   ├── page_views.py             # Web UI page views
 │   ├── serializers.py            # DRF serializers
 │   ├── urls.py                   # URL routing
 │   ├── authentication.py         # API key authentication
 │   ├── pagination.py             # Custom pagination
 │   ├── handlers.py               # Job handlers
+│   ├── middleware.py             # Rate limiting middleware
 │   ├── admin.py                  # Admin configuration
 │   └── tests.py                  # Integration tests
 ├── distributed_job_scheduler/    # Project settings
-│   ├── settings.py               # Django settings
+│   ├── settings/
+│   │   ├── base.py               # Common settings
+│   │   ├── local.py              # Development settings
+│   │   └── production.py         # Production settings
 │   ├── urls.py                   # Root URL config
 │   └── wsgi.py                   # WSGI entry point
 ├── docs/                         # Documentation
@@ -267,6 +366,7 @@ distributed_job_scheduler/
 │   ├── ER_DIAGRAM.md             # Entity-relationship diagram
 │   └── DESIGN_DECISIONS.md       # Design trade-offs
 ├── staticfiles/                  # Collected static files
+├── templates/                    # Global templates
 ├── manage.py                     # Django management script
 ├── requirements.txt              # Python dependencies
 └── .gitignore                    # Git ignore rules
@@ -338,6 +438,25 @@ HANDLERS = {
     "my_custom_job": my_custom_job,
 }
 ```
+
+## Demo Data
+
+Seed the database with demo data for testing:
+
+```bash
+python manage.py seed_demo
+```
+
+This creates:
+- User: `demo@demo.com` / `demo123`
+- Organization: "Demo Organization"
+- Projects: "API Project" (demo-api-key-1), "Batch Project" (demo-api-key-2)
+- Queues: high-priority, default, low-priority, batch-queue
+- 21 sample jobs (various statuses)
+- 1 ScheduledJob (daily-report cron)
+- 1 Worker registration
+- 1 BatchJob (3 jobs)
+- 2 DLQ entries
 
 ## Monitoring
 
