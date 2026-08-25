@@ -1,0 +1,101 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}Projects{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
+    <a href="{% url 'project_create' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
+        <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        New Project
+    </a>
+</div>
+
+{% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-800{% elif message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-blue-50 text-blue-800{% endif %} flex items-center justify-between">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    {% if projects %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API Key</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queues</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for project in projects %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ project.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ project.organization.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <code class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">{{ project.api_key }}</code>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if project.is_active %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ project.queue_count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ project.job_count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ project.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'project_detail' project.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="{% url 'project_update' project.pk %}" class="text-gray-600 hover:text-gray-900 mr-3">Edit</a>
+                            <a href="{% url 'queue_list' project.pk %}" class="text-green-600 hover:text-green-900">Queues</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if is_paginated %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <nav class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                </div>
+                <div class="flex space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Previous</a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Next</a>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5a1 1 0 001-1H2a1 1 0 00-1-1v-5a1 1 0 011-1H2a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 001 1h2a1 1 0 011 1v5a1 1 0 001 1m-6 0h6"></path></svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No projects</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating a new project.</p>
+            <div class="mt-6">
+                <a href="{% url 'project_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Create your first project
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

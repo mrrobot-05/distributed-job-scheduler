@@ -1,0 +1,108 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}Scheduled Jobs{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-900">Scheduled Jobs</h1>
+    <a href="{% url 'scheduled_create' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
+        <svg class="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        New Scheduled Job
+    </a>
+</div>
+
+{% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-800{% elif message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-blue-50 text-blue-800{% endif %} flex items-center justify-between">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    {% if scheduled_jobs %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cron Expression</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Run</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retries</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Backoff</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for scheduled in scheduled_jobs %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ scheduled.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ scheduled.queue.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <code class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">{{ scheduled.cron_expression }}</code>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ scheduled.next_run_at|date:"M d, Y H:i:s" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ scheduled.max_retries }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ scheduled.backoff_strategy }} ({{ scheduled.backoff_delay }}s)</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if scheduled.is_active %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'scheduled_detail_page' scheduled.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="{% url 'scheduled_update' scheduled.pk %}" class="text-gray-600 hover:text-gray-900 mr-3">Edit</a>
+                            <form method="POST" action="{% url 'scheduled_toggle' scheduled.pk %}" class="inline">
+                                {% csrf_token %}
+                                {% if scheduled.is_active %}
+                                    <button type="submit" class="text-yellow-600 hover:text-yellow-900 text-sm">Deactivate</button>
+                                {% else %}
+                                    <button type="submit" class="text-green-600 hover:text-green-900 text-sm">Activate</button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if is_paginated %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <nav class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                </div>
+                <div class="flex space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Previous</a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 border rounded hover:bg-gray-100">Next</a>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No scheduled jobs</h3>
+            <p class="mt-1 text-sm text-gray-500">Create a scheduled job to run tasks on a cron schedule.</p>
+            <div class="mt-6">
+                <a href="{% url 'scheduled_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Create Scheduled Job
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

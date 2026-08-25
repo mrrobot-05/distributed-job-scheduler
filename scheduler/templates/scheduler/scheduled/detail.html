@@ -1,0 +1,109 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}{{ scheduled_job.name }} - Scheduled Job{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ scheduled_job.name }}</h1>
+        <p class="mt-1 text-gray-500">{{ scheduled_job.queue.name }} • {{ scheduled_job.queue.project.name }}</p>
+    </div>
+    <div class="flex space-x-3">
+        <a href="{% url 'scheduled_list_page' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Back to List</a>
+    </div>
+</div>
+
+{% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-800{% elif message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-blue-50 text-blue-800{% endif %} flex items-center justify-between">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Scheduled Job Info Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Next Run</h3>
+        <p class="text-3xl font-bold text-blue-600 mt-1">{{ scheduled_job.next_run_at|date:"M d, Y H:i:s" }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Cron Expression</h3>
+        <p class="text-3xl font-bold text-blue-600 mt-1">{{ scheduled_job.cron_expression }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Status</h3>
+        <p class="text-3xl font-bold mt-1 {% if scheduled_job.is_active %}text-green-600{% else %}text-gray-600{% endif %}">
+            {% if scheduled_job.is_active %}Active{% else %}Inactive{% endif %}
+        </p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Max Retries</h3>
+        <p class="text-3xl font-bold text-gray-600 mt-1">{{ scheduled_job.max_retries }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Configuration</h2>
+        <dl class="space-y-3">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Queue</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.queue.name }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Payload</dt>
+                <dd class="text-sm text-gray-900 font-mono max-w-xs truncate">{{ scheduled_job.payload|json_script:"scheduled-payload" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Cron Expression</dt>
+                <dd class="text-sm text-gray-900 font-mono">{{ scheduled_job.cron_expression }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Next Run At</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.next_run_at|date:"M d, Y H:i:s" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Max Retries</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.max_retries }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Backoff Strategy</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.backoff_strategy }} ({{ scheduled_job.backoff_delay }}s)</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Active</dt>
+                <dd class="text-sm text-gray-900">{% if scheduled_job.is_active %}Yes{% else %}No{% endif %}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Created At</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.created_at|date:"M d, Y H:i:s" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Updated At</dt>
+                <dd class="text-sm text-gray-900">{{ scheduled_job.updated_at|date:"M d, Y H:i:s" }}</dd>
+            </div>
+        </dl>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Payload</h2>
+        <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm"><code>{{ scheduled_job.payload|json_script:"scheduled-payload" }}</code></pre>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="mb-6 flex flex-wrap gap-3">
+    <form method="POST" action="{% url 'scheduled_toggle' scheduled_job.pk %}" class="inline">
+        {% csrf_token %}
+        {% if scheduled_job.is_active %}
+            <button type="submit" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded" onclick="return confirm('Deactivate this scheduled job?')">Deactivate</button>
+        {% else %}
+            <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Activate</button>
+        {% endif %}
+    </form>
+    <a href="{% url 'scheduled_update' scheduled_job.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Edit</a>
+    <a href="{% url 'scheduled_list_page' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Back to List</a>
+</div>
+{% endblock %}

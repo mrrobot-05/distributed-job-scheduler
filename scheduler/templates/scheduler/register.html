@@ -1,0 +1,95 @@
+{% extends 'scheduler/base.html' %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <div class="mx-auto h-12 w-12 text-blue-600">
+                <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+            </div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Create your account</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Already have an account? <a href="{% url 'login' %}" class="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
+            </p>
+        </div>
+        <form class="mt-8 space-y-6" method="POST">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="rounded-md bg-red-50 p-4">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Error</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="rounded-md shadow-sm space-y-4">
+                <div>
+                    <label for="id_username" class="sr-only">Username</label>
+                    <input id="id_username" name="username" type="text" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Username">
+                    {% if form.username.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_email" class="sr-only">Email</label>
+                    <input id="id_email" name="email" type="email" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Email address">
+                    {% if form.email.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.email.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_organization_name" class="sr-only">Organization Name</label>
+                    <input id="id_organization_name" name="organization_name" type="text" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Organization Name">
+                    {% if form.organization_name.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.organization_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_project_name" class="sr-only">Project Name</label>
+                    <input id="id_project_name" name="project_name" type="text" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Project Name">
+                    {% if form.project_name.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.project_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_password1" class="sr-only">Password</label>
+                    <input id="id_password1" name="password1" type="password" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Password">
+                    {% if form.password1.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.password1.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_password2" class="sr-only">Confirm Password</label>
+                    <input id="id_password2" name="password2" type="password" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Confirm Password">
+                    {% if form.password2.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.password2.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Create Account
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

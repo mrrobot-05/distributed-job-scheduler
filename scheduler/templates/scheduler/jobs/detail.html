@@ -1,0 +1,161 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}{{ job.name }} - Job Details{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ job.name }}</h1>
+        <p class="mt-1 text-gray-500">{{ job.queue.name }} • {{ job.queue.project.name }} • {{ job.id }}</p>
+    </div>
+    <div class="flex space-x-3">
+        <a href="{% url 'job_explorer' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Back to Explorer</a>
+    </div>
+</div>
+
+{% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-800{% elif message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-blue-50 text-blue-800{% endif %} flex items-center justify-between">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Job Info Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Status</h3>
+        <div class="mt-1">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                {% if job.status == 'COMPLETED' %}bg-green-100 text-green-800
+                {% elif job.status == 'FAILED' %}bg-red-100 text-red-800
+                {% elif job.status == 'RUNNING' %}bg-blue-100 text-blue-800
+                {% elif job.status == 'CLAIMED' %}bg-amber-100 text-amber-800
+                {% elif job.status == 'DLQ' %}bg-purple-100 text-purple-800
+                {% elif job.status == 'SCHEDULED' %}bg-gray-100 text-gray-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ job.status }}
+            </span>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Queue</h3>
+        <p class="text-3xl font-bold text-blue-600 mt-1">{{ job.queue.name }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Retries</h3>
+        <p class="text-3xl font-bold text-orange-600 mt-1">{{ job.retry_count }} / {{ job.max_retries }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Backoff</h3>
+        <p class="text-3xl font-bold text-gray-600 mt-1">{{ job.backoff_strategy }} ({{ job.backoff_delay }}s)</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Payload</h2>
+        <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm"><code>{{ job.payload|json_script:"job-payload" }}</code></pre>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Job Info</h2>
+        <dl class="space-y-3">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Unique Key</dt>
+                <dd class="text-sm text-gray-900 font-mono">{{ job.unique_key|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Batch ID</dt>
+                <dd class="text-sm text-gray-900 font-mono">{{ job.batch_id|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Cron Expression</dt>
+                <dd class="text-sm text-gray-900 font-mono">{{ job.cron_expression|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Scheduled At</dt>
+                <dd class="text-sm text-gray-900">{{ job.scheduled_at|date:"M d, Y H:i:s" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Created At</dt>
+                <dd class="text-sm text-gray-900">{{ job.created_at|date:"M d, Y H:i:s" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Timeout</dt>
+                <dd class="text-sm text-gray-900">{{ job.timeout_seconds }}s</dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Job Actions -->
+<div class="mb-6 flex flex-wrap gap-3">
+    {% if job.status == 'FAILED' or job.status == 'DLQ' %}
+        <form method="POST" action="{% url 'job_retry' job.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Retry Job</button>
+        </form>
+    {% endif %}
+    {% if job.status in 'QUEUED,SCHEDULED,CLAIMED' %}
+        <form method="POST" action="{% url 'job_cancel' job.pk %}" class="inline" onsubmit="return confirm('Cancel this job?')">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Cancel Job</button>
+        </form>
+    {% endif %}
+    <a href="{% url 'job_logs' job.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">View Logs</a>
+</div>
+
+<!-- Executions -->
+<div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-900">Execution History</h2>
+    </div>
+    
+    {% if executions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worker</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ended</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logs</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for exec in executions %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ exec.attempt_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if exec.status == 'SUCCESS' %}bg-green-100 text-green-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ exec.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ exec.worker.hostname|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ exec.started_at|date:"M d, Y H:i:s" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ exec.ended_at|date:"M d, Y H:i:s"|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ exec.duration_ms|default:"-" }}ms</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{{ exec.error_message|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{% url 'job_logs' job.pk %}?execution_id={{ exec.pk }}" class="text-blue-600 hover:text-blue-900 text-sm">View Logs</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500">No executions yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

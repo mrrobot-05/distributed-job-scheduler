@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Explorer - Distributed Job Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <nav class="bg-blue-600 p-4 text-white shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Distributed Job Scheduler</h1>
+            <div class="flex items-center space-x-4">
+                <a href="/" class="text-sm hover:underline">Dashboard</a>
+                <span class="text-sm">Job Explorer</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        <!-- Filters -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Filters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="filter-status" class="w-full p-2 border rounded">
+                        <option value="">All</option>
+                        <option value="QUEUED">Queued</option>
+                        <option value="SCHEDULED">Scheduled</option>
+                        <option value="CLAIMED">Claimed</option>
+                        <option value="RUNNING">Running</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="FAILED">Failed</option>
+                        <option value="DLQ">Dead Letter Queue</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Queue</label>
+                    <select id="filter-queue" class="w-full p-2 border rounded">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                    <input type="datetime-local" id="filter-date-from" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                    <input type="datetime-local" id="filter-date-to" class="w-full p-2 border rounded">
+                </div>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <button onclick="loadJobs(1)" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">Search</button>
+                <button onclick="clearFilters()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">Clear</button>
+            </div>
+        </div>
+
+        <!-- Jobs Table -->
+        <div class="bg-white rounded-lg shadow-md">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-semibold">Jobs (<span id="job-count">0</span>)</h2>
+                    <div class="flex gap-2">
+                        <select id="page-size" class="p-2 border rounded" onchange="loadJobs(1)">
+                            <option value="10">10 per page</option>
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full leading-normal">
+                    <thead>
+                        <tr>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Name</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Queue</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Retries</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Scheduled At</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created At</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-table-body">
+                        <tr id="jobs-loading-row">
+                            <td colspan="7" class="text-center text-gray-500 py-4">Loading jobs...</td>
+                        </tr>
+                        <tr id="jobs-empty-row" class="hidden">
+                            <td colspan="7" class="text-center text-gray-500 py-4">No jobs found matching your filters</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="jobs-error" class="hidden p-4 border-t text-center text-red-600">Failed to load jobs</div>
+            <!-- Pagination -->
+            <div class="p-4 border-t flex justify-center" id="pagination">
+            </div>
+        </div>
+    </main>
+
+    <!-- Job Detail Modal -->
+    <div id="job-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-semibold" id="modal-job-name">Job Details</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div class="p-6" id="modal-content">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '{{ api_key|default:"dashboard-key" }}';
+        let currentPage = 1;
+        let currentFilters = {};
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'COMPLETED': return 'text-green-900 bg-green-200';
+                case 'FAILED': return 'text-red-900 bg-red-200';
+                case 'RUNNING': return 'text-blue-900 bg-blue-200';
+                case 'DLQ': return 'text-purple-900 bg-purple-200';
+                case 'CLAIMED': return 'text-yellow-900 bg-yellow-200';
+                default: return 'text-gray-900 bg-gray-200';
+            }
+        }
+
+        async function loadJobs(page = 1) {
+            currentPage = page;
+            const status = document.getElementById('filter-status').value;
+            const queue = document.getElementById('filter-queue').value;
+            const dateFrom = document.getElementById('filter-date-from').value;
+            const dateTo = document.getElementById('filter-date-to').value;
+            const pageSize = document.getElementById('page-size').value;
+
+            const params = new URLSearchParams({ page, page_size: pageSize });
+            if (status) params.append('status', status);
+            if (queue) params.append('queue', queue);
+            if (dateFrom) params.append('created_at__gte', dateFrom);
+            if (dateTo) params.append('created_at__lte', dateTo);
+
+            currentFilters = { status, queue, dateFrom, dateTo, pageSize };
+
+            // Show loading state
+            document.getElementById('jobs-loading-row').classList.remove('hidden');
+            document.getElementById('jobs-empty-row').classList.add('hidden');
+            document.getElementById('jobs-error').classList.add('hidden');
+            document.getElementById('pagination').innerHTML = '';
+
+            try {
+                const response = await fetch(`/api/jobs/?${params}`, {
+                    headers: { 'X-Project-Key': API_KEY }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                document.getElementById('job-count').textContent = data.count;
+
+                const tbody = document.getElementById('jobs-table-body');
+                if (data.results && data.results.length > 0) {
+                    tbody.innerHTML = data.results.map(j => `
+                        <tr class="hover:bg-gray-50" onclick="showJobDetail('${j.id}')">
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm cursor-pointer">
+                                <p class="text-gray-900 whitespace-no-wrap">${j.name}</p>
+                                <p class="text-gray-400 text-xs">${j.id}</p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <span class="relative inline-block px-3 py-1 font-semibold leading-tight ${getStatusColor(j.status)}">
+                                    <span aria-hidden class="absolute inset-0 opacity-50 rounded-full"></span>
+                                    <span class="relative">${j.status}</span>
+                                </span>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${j.queue}</td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${j.retry_count || 0} / ${j.max_retries || 3}</td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(j.scheduled_at).toLocaleString()}</td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(j.created_at).toLocaleString()}</td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <button onclick="event.stopPropagation(); showJobDetail('${j.id}')" class="text-blue-600 hover:text-blue-900 text-sm">View</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    document.getElementById('jobs-loading-row').classList.add('hidden');
+                    document.getElementById('jobs-empty-row').classList.add('hidden');
+                } else {
+                    tbody.innerHTML = '';
+                    document.getElementById('jobs-loading-row').classList.add('hidden');
+                    document.getElementById('jobs-empty-row').classList.remove('hidden');
+                }
+
+                renderPagination(data);
+            } catch (error) {
+                console.error('Error fetching jobs:', error);
+                document.getElementById('jobs-loading-row').classList.add('hidden');
+                document.getElementById('jobs-error').classList.remove('hidden');
+            }
+        }
+
+        function renderPagination(data) {
+            const pagination = document.getElementById('pagination');
+            if (!data.next && !data.previous) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '<nav class="flex gap-2">';
+            if (data.previous) {
+                html += `<button onclick="loadJobs(${currentPage - 1})" class="px-3 py-1 border rounded hover:bg-gray-100">Previous</button>`;
+            }
+            html += `<span class="px-3 py-1">Page ${currentPage}</span>`;
+            if (data.next) {
+                html += `<button onclick="loadJobs(${currentPage + 1})" class="px-3 py-1 border rounded hover:bg-gray-100">Next</button>`;
+            }
+            html += '</nav>';
+            pagination.innerHTML = html;
+        }
+
+        async function showJobDetail(jobId) {
+            openModal();
+
+            try {
+                const response = await fetch(`/api/jobs/${jobId}/`, {
+                    headers: { 'X-Project-Key': API_KEY }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const job = await response.json();
+
+                document.getElementById('modal-job-name').textContent = `${job.name} (${job.id.slice(0,8)}...)`;
+
+                let executionsHtml = '';
+                if (job.executions && job.executions.length > 0) {
+                    executionsHtml = job.executions.map(exec => `
+                        <div class="border rounded p-3 mb-3">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">Attempt #${exec.attempt_number}</span>
+                                <span class="${exec.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600'}">${exec.status}</span>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                Started: ${new Date(exec.started_at).toLocaleString()}<br>
+                                ${exec.ended_at ? `Ended: ${new Date(exec.ended_at).toLocaleString()} (${exec.duration_ms}ms)` : 'Running...'}
+                            </div>
+                            ${exec.error_message ? `<div class="text-red-600 text-sm mt-2">Error: ${exec.error_message}</div>` : ''}
+                            <button onclick="showLogs('${job.id}', '${exec.id}')" class="text-blue-600 hover:underline text-sm mt-2">View Logs</button>
+                        </div>
+                    `).join('');
+                } else {
+                    executionsHtml = '<p class="text-gray-500">No executions yet</p>';
+                }
+
+                document.getElementById('modal-content').innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <p class="text-sm text-gray-500">Status</p>
+                            <p class="font-medium"><span class="relative inline-block px-3 py-1 font-semibold leading-tight ${getStatusColor(job.status)}"><span class="relative">${job.status}</span></span></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Queue</p>
+                            <p class="font-medium">${job.queue}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Retries</p>
+                            <p class="font-medium">${job.retry_count || 0} / ${job.max_retries || 3}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Backoff</p>
+                            <p class="font-medium">${job.backoff_strategy} (${job.backoff_delay}s)</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Scheduled At</p>
+                            <p class="font-medium">${new Date(job.scheduled_at).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Created At</p>
+                            <p class="font-medium">${new Date(job.created_at).toLocaleString()}</p>
+                        </div>
+                        ${job.unique_key ? `<div><p class="text-sm text-gray-500">Unique Key</p><p class="font-medium text-sm">${job.unique_key}</p></div>` : ''}
+                        ${job.batch_id ? `<div><p class="text-sm text-gray-500">Batch ID</p><p class="font-medium text-sm">${job.batch_id}</p></div>` : ''}
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">Payload</h4>
+                        <pre class="bg-gray-100 p-3 rounded text-sm overflow-x-auto">${JSON.stringify(job.payload, null, 2)}</pre>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2">Executions</h4>
+                        ${executionsHtml}
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                        ${job.status === 'FAILED' || job.status === 'DLQ' ? `
+                            <button onclick="retryJob('${job.id}')" class="bg-yellow-500 hover:bg-yellow-700 text-white py-2 px-4 rounded">Retry</button>
+                        ` : ''}
+                        ${job.status === 'QUEUED' || job.status === 'SCHEDULED' || job.status === 'CLAIMED' ? `
+                            <button onclick="cancelJob('${job.id}')" class="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded">Cancel</button>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error fetching job detail:', error);
+                document.getElementById('modal-content').innerHTML = '<p class="text-red-600">Error loading job details</p>';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('job-modal').classList.add('hidden');
+            document.getElementById('job-modal').classList.remove('flex');
+        }
+
+        async function retryJob(jobId) {
+            try {
+                const response = await fetch(`/api/jobs/${jobId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Project-Key': API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'retry' })
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                closeModal();
+                loadJobs(currentPage);
+            } catch (error) {
+                console.error('Error retrying job:', error);
+                alert('Failed to retry job');
+            }
+        }
+
+        async function cancelJob(jobId) {
+            if (!confirm('Cancel this job?')) return;
+            try {
+                const response = await fetch(`/api/jobs/${jobId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Project-Key': API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'cancel' })
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                closeModal();
+                loadJobs(currentPage);
+            } catch (error) {
+                console.error('Error cancelling job:', error);
+                alert('Failed to cancel job');
+            }
+        }
+
+        async function showLogs(jobId, executionId) {
+            try {
+                const response = await fetch(`/api/jobs/${jobId}/logs/?execution_id=${executionId}`, {
+                    headers: { 'X-Project-Key': API_KEY }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                let logsHtml = data.results.map(log => `
+                    <div class="border-b py-2 ${log.level === 'ERROR' ? 'bg-red-50' : log.level === 'WARNING' ? 'bg-yellow-50' : ''}">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium ${log.level === 'ERROR' ? 'text-red-600' : log.level === 'WARNING' ? 'text-yellow-600' : 'text-gray-600'}">${log.level}</span>
+                            <span class="text-gray-400">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="text-sm">${log.message}</div>
+                        ${log.meta && Object.keys(log.meta).length ? `<pre class="text-xs text-gray-500 mt-1">${JSON.stringify(log.meta, null, 2)}</pre>` : ''}
+                    </div>
+                `).join('');
+
+                document.getElementById('modal-content').innerHTML = `
+                    <h4 class="font-semibold mb-2">Logs for Execution ${executionId.slice(0,8)}...</h4>
+                    <div class="max-h-96 overflow-y-auto">${logsHtml || '<p class="text-gray-500">No logs</p>'}</div>
+                    <button onclick="showJobDetail('${jobId}')" class="mt-4 text-blue-600 hover:underline">Back to Job</button>
+                `;
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+            }
+        }
+
+        // Modal accessibility: ESC key, backdrop click, focus trap
+        let lastFocusedElement = null;
+        function openModal() {
+            lastFocusedElement = document.activeElement;
+            document.getElementById('job-modal').classList.remove('hidden');
+            document.getElementById('job-modal').classList.add('flex');
+            // Focus first focusable element
+            setTimeout(() => {
+                const focusable = document.getElementById('job-modal').querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (focusable) focusable.focus();
+            }, 0);
+            document.addEventListener('keydown', handleModalKeydown);
+        }
+
+        function closeModal() {
+            document.getElementById('job-modal').classList.add('hidden');
+            document.getElementById('job-modal').classList.remove('flex');
+            document.removeEventListener('keydown', handleModalKeydown);
+            if (lastFocusedElement) lastFocusedElement.focus();
+        }
+
+        function handleModalKeydown(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+            // Trap focus within modal
+            if (e.key === 'Tab') {
+                const modal = document.getElementById('job-modal');
+                const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        }
+
+        // Backdrop click to close
+        document.getElementById('job-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        // Convert datetime-local to UTC ISO string for API
+        function toUtcIsoString(datetimeLocal) {
+            if (!datetimeLocal) return null;
+            const date = new Date(datetimeLocal);
+            return date.toISOString();
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-queue').value = '';
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            loadJobs(1);
+        }
+
+        async function loadQueues() {
+            try {
+                const response = await fetch('/api/queues/', {
+                    headers: { 'X-Project-Key': API_KEY }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                const select = document.getElementById('filter-queue');
+                data.forEach(q => {
+                    const option = document.createElement('option');
+                    option.value = q.name;
+                    option.textContent = q.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading queues:', error);
+            }
+        }
+
+        loadQueues();
+        loadJobs(1);
+    </script>
+</body>
+</html>

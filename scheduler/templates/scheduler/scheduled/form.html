@@ -1,0 +1,128 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}{% if is_create %}New Scheduled Job{% else %}Edit Scheduled Job{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">{% if is_create %}New Scheduled Job{% else %}Edit Scheduled Job{% endif %}</h1>
+        <p class="mt-1 text-gray-500">{% if is_create %}Create a new recurring job with cron scheduling.{% else %}Update scheduled job settings.{% endif %}</p>
+    </div>
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-800{% elif message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-blue-50 text-blue-800{% endif %} flex items-center justify-between">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.queue.id_for_label }}" class="block text-sm font-medium text-gray-700">Queue</label>
+                    {{ form.queue }}
+                    {% if form.queue.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.queue.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">Name</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.payload.id_for_label }}" class="block text-sm font-medium text-gray-700">Payload (JSON)</label>
+                    {{ form.payload }}
+                    {% if form.payload.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.payload.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Example: {"key": "value"}</p>
+                </div>
+
+                <div>
+                    <label for="{{ form.cron_expression.id_for_label }}" class="block text-sm font-medium text-gray-700">Cron Expression</label>
+                    {{ form.cron_expression }}
+                    {% if form.cron_expression.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.cron_expression.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Standard cron format (e.g., "0 9 * * *" for daily at 9 AM UTC). <a href="https://crontab.guru/" target="_blank" class="text-blue-600 hover:underline">Cron Guru</a></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ form.max_retries.id_for_label }}" class="block text-sm font-medium text-gray-700">Max Retries</label>
+                        {{ form.max_retries }}
+                        {% if form.max_retries.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.max_retries.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="{{ form.backoff_strategy.id_for_label }}" class="block text-sm font-medium text-gray-700">Backoff Strategy</label>
+                        {{ form.backoff_strategy }}
+                        {% if form.backoff_strategy.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.backoff_strategy.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ form.backoff_delay.id_for_label }}" class="block text-sm font-medium text-gray-700">Backoff Delay (seconds)</label>
+                        {{ form.backoff_delay }}
+                        {% if form.backoff_delay.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.backoff_delay.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="{{ form.is_active.id_for_label }}" class="block text-sm font-medium text-gray-700">Status</label>
+                        <div class="mt-1">
+                            <label class="inline-flex items-center">
+                                {{ form.is_active }}
+                                <span class="ml-2 text-sm text-gray-700">Active</span>
+                            </label>
+                        </div>
+                        {% if form.is_active.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.is_active.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <a href="{% url 'scheduled_list_page' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+                <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    {% if is_create %}Create Scheduled Job{% else %}Save Changes{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('input[type="text"], input[type="number"], textarea, select');
+        inputs.forEach(input => {
+            input.classList.add('mt-1', 'block', 'w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'focus:outline-none', 'focus:ring-blue-500', 'focus:border-blue-500', 'sm:text-sm');
+        });
+
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.classList.add('h-4', 'w-4', 'text-blue-600', 'border-gray-300', 'rounded', 'focus:ring-blue-500');
+        });
+    });
+</script>
+{% endblock %}

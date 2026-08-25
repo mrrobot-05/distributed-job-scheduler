@@ -1,0 +1,803 @@
+openapi: 3.0.3
+info:
+  title: Distributed Job Scheduler API
+  version: 1.0.0
+  description: Production-ready distributed job scheduling platform with REST API
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+paths:
+  /api/dlq/:
+    get:
+      operationId: dlq_retrieve
+      tags:
+      - dlq
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/dlq/{dlq_id}/retry/:
+    post:
+      operationId: dlq_retry_create
+      parameters:
+      - in: path
+        name: dlq_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dlq
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/:
+    get:
+      operationId: jobs_retrieve
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/{job_id}/:
+    get:
+      operationId: jobs_retrieve_2
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: jobs_create
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/{job_id}/logs/:
+    get:
+      operationId: jobs_logs_retrieve
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/batch/:
+    post:
+      operationId: jobs_batch_create
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/batch/{batch_id}/:
+    get:
+      operationId: jobs_batch_retrieve
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/jobs/submit/:
+    post:
+      operationId: jobs_submit_create
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/queues/:
+    get:
+      operationId: queues_retrieve
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: queues_create
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/queues/{queue_id}/:
+    get:
+      operationId: queues_retrieve_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: queues_partial_update
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: queues_destroy
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/queues/{queue_id}/pause/:
+    post:
+      operationId: queues_pause_create
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/queues/{queue_id}/resume/:
+    post:
+      operationId: queues_resume_create
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/queues/{queue_id}/stats/:
+    get:
+      operationId: queues_stats_retrieve
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/scheduled/:
+    get:
+      operationId: scheduled_retrieve
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: scheduled_create
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/scheduled/{scheduled_id}/:
+    get:
+      operationId: scheduled_retrieve_2
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: scheduled_partial_update
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: scheduled_destroy
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/stats/:
+    get:
+      operationId: stats_retrieve
+      tags:
+      - stats
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/workers/:
+    get:
+      operationId: workers_retrieve
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/workers/heartbeat/:
+    post:
+      operationId: workers_heartbeat_create
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/workers/register/:
+    post:
+      operationId: workers_register_create
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/workflows/:
+    get:
+      operationId: workflows_retrieve
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: workflows_create
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/workflows/{dep_id}/:
+    delete:
+      operationId: workflows_destroy
+      parameters:
+      - in: path
+        name: dep_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /dlq/:
+    get:
+      operationId: dlq_retrieve_2
+      tags:
+      - dlq
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /dlq/{dlq_id}/retry/:
+    post:
+      operationId: dlq_retry_create_2
+      parameters:
+      - in: path
+        name: dlq_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dlq
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/:
+    get:
+      operationId: jobs_retrieve_3
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/{job_id}/:
+    get:
+      operationId: jobs_retrieve_4
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: jobs_create_2
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/{job_id}/logs/:
+    get:
+      operationId: jobs_logs_retrieve_2
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/batch/:
+    post:
+      operationId: jobs_batch_create_2
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/batch/{batch_id}/:
+    get:
+      operationId: jobs_batch_retrieve_2
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /jobs/submit/:
+    post:
+      operationId: jobs_submit_create_2
+      tags:
+      - jobs
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /queues/:
+    get:
+      operationId: queues_retrieve_3
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: queues_create_2
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /queues/{queue_id}/:
+    get:
+      operationId: queues_retrieve_4
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: queues_partial_update_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: queues_destroy_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /queues/{queue_id}/pause/:
+    post:
+      operationId: queues_pause_create_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /queues/{queue_id}/resume/:
+    post:
+      operationId: queues_resume_create_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /queues/{queue_id}/stats/:
+    get:
+      operationId: queues_stats_retrieve_2
+      parameters:
+      - in: path
+        name: queue_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - queues
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /scheduled/:
+    get:
+      operationId: scheduled_retrieve_3
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: scheduled_create_2
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /scheduled/{scheduled_id}/:
+    get:
+      operationId: scheduled_retrieve_4
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: scheduled_partial_update_2
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: scheduled_destroy_2
+      parameters:
+      - in: path
+        name: scheduled_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - scheduled
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /stats/:
+    get:
+      operationId: stats_retrieve_2
+      tags:
+      - stats
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /workers/:
+    get:
+      operationId: workers_retrieve_2
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /workers/heartbeat/:
+    post:
+      operationId: workers_heartbeat_create_2
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /workers/register/:
+    post:
+      operationId: workers_register_create_2
+      tags:
+      - workers
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /workflows/:
+    get:
+      operationId: workflows_retrieve_2
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: workflows_create_2
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /workflows/{dep_id}/:
+    delete:
+      operationId: workflows_destroy_2
+      parameters:
+      - in: path
+        name: dep_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - workflows
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+components: {}
+tags:
+- name: Jobs
+  description: Job management endpoints
+- name: Queues
+  description: Queue configuration and management
+- name: Workers
+  description: Worker registration and heartbeat
+- name: Batch Jobs
+  description: Batch job submission and tracking
+- name: Dead Letter Queue
+  description: Failed job management
+- name: Scheduled Jobs
+  description: Cron-like recurring job scheduling
+- name: Workflows
+  description: Job dependency management
+- name: Stats
+  description: System metrics and health

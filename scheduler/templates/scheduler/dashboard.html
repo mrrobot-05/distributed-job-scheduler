@@ -1,0 +1,399 @@
+{% extends 'scheduler/base.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Active Workers</h3>
+        <p id="card-workers" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Queued Jobs</h3>
+        <p id="card-queued" class="text-3xl font-bold text-yellow-600 mt-1">0</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Running Jobs</h3>
+        <p id="card-running" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-sm font-medium text-gray-500">Dead Letter Queue</h3>
+        <p id="card-dlq" class="text-3xl font-bold text-red-600 mt-1">0</p>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Throughput (Jobs/min)</h2>
+        <div class="chart-container">
+            <canvas id="throughput-chart"></canvas>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Job Status Distribution</h2>
+        <div class="chart-container">
+            <canvas id="status-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Queue Health</h2>
+        <div class="chart-container">
+            <canvas id="queue-chart"></canvas>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Worker Load</h2>
+        <div class="chart-container">
+            <canvas id="worker-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Queues & Workers -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Queues</h2>
+            <button onclick="refreshData()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition" id="refresh-btn">
+                <span id="refresh-text">Refresh</span>
+                <span id="refresh-spinner" class="hidden ml-2">⟳</span>
+            </button>
+        </div>
+        <div id="queues-list" class="space-y-4">
+            <div id="queues-loading" class="text-center text-gray-500 py-4">Loading queues...</div>
+            <div id="queues-empty" class="hidden text-center text-gray-500 py-4">No queues found</div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Active Workers</h2>
+        <div id="workers-list" class="space-y-4">
+            <div id="workers-loading" class="text-center text-gray-500 py-4">Loading workers...</div>
+            <div id="workers-empty" class="hidden text-center text-gray-500 py-4">No active workers</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Jobs -->
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">Recent Jobs</h2>
+        <a href="{% url 'job_explorer' %}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition">
+            View All Jobs
+        </a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full leading-normal">
+            <thead>
+                <tr>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Name</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Queue</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Scheduled At</th>
+                </tr>
+            </thead>
+            <tbody id="jobs-table-body">
+                <tr id="jobs-loading-row">
+                    <td colspan="4" class="text-center text-gray-500 py-4">Loading jobs...</td>
+                </tr>
+                <tr id="jobs-empty-row" class="hidden">
+                    <td colspan="4" class="text-center text-gray-500 py-4">No recent jobs</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="jobs-error" class="hidden text-center text-red-600 py-4">Failed to load jobs</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const API_KEY = '{{ api_key|default:"dashboard-key" }}';
+    let throughputChart, statusChart, queueChart, workerChart;
+
+    function getStatusColor(status) {
+        switch(status) {
+            case 'COMPLETED': return 'text-green-900 bg-green-200';
+            case 'FAILED': return 'text-red-900 bg-red-200';
+            case 'RUNNING': return 'text-blue-900 bg-blue-200';
+            case 'DLQ': return 'text-purple-900 bg-purple-200';
+            case 'CLAIMED': return 'text-amber-900 bg-amber-200';
+            case 'SCHEDULED': return 'text-gray-900 bg-gray-200';
+            default: return 'text-gray-900 bg-gray-200';
+        }
+    }
+
+    async function refreshData() {
+        // Show loading states
+        document.getElementById('refresh-btn').disabled = true;
+        document.getElementById('refresh-text').textContent = 'Loading...';
+        document.getElementById('refresh-spinner').classList.remove('hidden');
+        
+        document.getElementById('queues-loading').classList.remove('hidden');
+        document.getElementById('queues-empty').classList.add('hidden');
+        document.getElementById('workers-loading').classList.remove('hidden');
+        document.getElementById('workers-empty').classList.add('hidden');
+        document.getElementById('jobs-loading-row').classList.remove('hidden');
+        document.getElementById('jobs-empty-row').classList.add('hidden');
+        document.getElementById('jobs-error').classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/stats/', {
+                headers: { 'X-Project-Key': API_KEY }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Update Summary Cards
+            document.getElementById('card-workers').textContent = data.active_workers;
+            document.getElementById('card-queued').textContent = data.jobs_queued;
+            document.getElementById('card-running').textContent = data.jobs_running;
+            document.getElementById('card-dlq').textContent = data.jobs_dlq;
+
+            document.getElementById('worker-count').textContent = data.active_workers;
+            document.getElementById('queued-count').textContent = data.jobs_queued;
+            document.getElementById('running-count').textContent = data.jobs_running;
+            document.getElementById('dlq-count').textContent = data.jobs_dlq;
+
+            // Update Queues
+            const queuesList = document.getElementById('queues-list');
+            if (data.queues && data.queues.length > 0) {
+                queuesList.innerHTML = data.queues.map(q => `
+                    <div class="flex justify-between items-center p-3 border rounded ${q.is_paused ? 'bg-red-50' : 'bg-green-50'}">
+                        <div>
+                            <span class="font-bold">${q.name}</span>
+                            <span class="text-xs text-gray-500 ml-2">Priority: ${q.priority}</span>
+                            <span class="text-xs text-gray-500 ml-2">Concurrency: ${q.concurrency_limit}</span>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs ${q.is_paused ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}">
+                            ${q.is_paused ? 'Paused' : 'Active'}
+                        </span>
+                    </div>
+                `).join('');
+                document.getElementById('queues-loading').classList.add('hidden');
+                document.getElementById('queues-empty').classList.add('hidden');
+            } else {
+                queuesList.innerHTML = '';
+                document.getElementById('queues-loading').classList.add('hidden');
+                document.getElementById('queues-empty').classList.remove('hidden');
+            }
+
+            // Update Workers
+            const workersList = document.getElementById('workers-list');
+            if (data.workers && data.workers.length > 0) {
+                workersList.innerHTML = data.workers.map(w => `
+                    <div class="p-3 border rounded bg-blue-50">
+                        <div class="flex justify-between">
+                            <span class="font-bold">${w.hostname}</span>
+                            <span class="text-xs text-blue-600">${w.status}</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Jobs: ${w.current_jobs}/${w.concurrency_limit}</span>
+                            <span>Last Heartbeat: ${new Date(w.last_heartbeat).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('workers-loading').classList.add('hidden');
+                document.getElementById('workers-empty').classList.add('hidden');
+            } else {
+                workersList.innerHTML = '';
+                document.getElementById('workers-loading').classList.add('hidden');
+                document.getElementById('workers-empty').classList.remove('hidden');
+            }
+
+            // Update Jobs
+            const jobsTable = document.getElementById('jobs-table-body');
+            if (data.recent_jobs && data.recent_jobs.length > 0) {
+                jobsTable.innerHTML = data.recent_jobs.map(j => `
+                    <tr>
+                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                            <p class="text-gray-900 whitespace-no-wrap">${j.name}</p>
+                            <p class="text-gray-400 text-xs">${j.id}</p>
+                        </td>
+                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                            <span class="relative inline-block px-3 py-1 font-semibold leading-tight ${getStatusColor(j.status)}">
+                                <span aria-hidden class="absolute inset-0 opacity-50 rounded-full"></span>
+                                <span class="relative">${j.status}</span>
+                            </span>
+                        </td>
+                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${j.queue}</td>
+                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(j.scheduled_at).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('jobs-loading-row').classList.add('hidden');
+                document.getElementById('jobs-empty-row').classList.add('hidden');
+            } else {
+                jobsTable.innerHTML = '';
+                document.getElementById('jobs-loading-row').classList.add('hidden');
+                document.getElementById('jobs-empty-row').classList.remove('hidden');
+            }
+
+            // Update Charts
+            updateCharts(data);
+
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            document.getElementById('jobs-error').classList.remove('hidden');
+            document.getElementById('jobs-loading-row').classList.add('hidden');
+        } finally {
+            // Reset button state
+            document.getElementById('refresh-btn').disabled = false;
+            document.getElementById('refresh-text').textContent = 'Refresh';
+            document.getElementById('refresh-spinner').classList.add('hidden');
+        }
+    }
+
+    function getStatusColor(status) {
+        switch(status) {
+            case 'COMPLETED': return 'text-green-900 bg-green-200';
+            case 'FAILED': return 'text-red-900 bg-red-200';
+            case 'RUNNING': return 'text-blue-900 bg-blue-200';
+            case 'DLQ': return 'text-purple-900 bg-purple-200';
+            case 'CLAIMED': return 'text-amber-900 bg-amber-200';
+            case 'SCHEDULED': return 'text-gray-900 bg-gray-200';
+            default: return 'text-gray-900 bg-gray-200';
+        }
+    }
+
+    function updateCharts(data) {
+        const now = new Date();
+        const timeLabels = [];
+        for (let i = 9; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 30000);
+            timeLabels.push(d.toLocaleTimeString());
+        }
+
+        // Throughput Chart - store last 10 data points
+        if (!throughputChart) {
+            throughputChart = new Chart(document.getElementById('throughput-chart'), {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Completed',
+                        data: Array(10).fill(0),
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Failed',
+                        data: Array(10).fill(0),
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+        // Shift data and add new point
+        const completedCount = data.jobs_completed || 0;
+        const failedCount = data.jobs_failed || 0;
+        throughputChart.data.datasets[0].data.shift();
+        throughputChart.data.datasets[0].data.push(completedCount);
+        throughputChart.data.datasets[1].data.shift();
+        throughputChart.data.datasets[1].data.push(failedCount);
+        throughputChart.data.labels.shift();
+        throughputChart.data.labels.push(timeLabels[timeLabels.length - 1]);
+        throughputChart.update();
+
+        // Status Chart - use real data from API
+        const statusCounts = {
+            'QUEUED': data.jobs_queued || 0,
+            'SCHEDULED': data.jobs_scheduled || 0,
+            'CLAIMED': data.jobs_claimed || 0,
+            'RUNNING': data.jobs_running || 0,
+            'COMPLETED': data.jobs_completed || 0,
+            'FAILED': data.jobs_failed || 0,
+            'DLQ': data.jobs_dlq || 0
+        };
+
+        if (!statusChart) {
+            statusChart = new Chart(document.getElementById('status-chart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: [
+                            'rgba(234, 179, 8, 0.8)',   // QUEUED - yellow
+                            'rgba(156, 163, 175, 0.8)', // SCHEDULED - gray
+                            'rgba(245, 158, 11, 0.8)',  // CLAIMED - amber
+                            'rgba(59, 130, 246, 0.8)',  // RUNNING - blue
+                            'rgba(34, 197, 94, 0.8)',   // COMPLETED - green
+                            'rgba(239, 68, 68, 0.8)',   // FAILED - red
+                            'rgba(168, 85, 247, 0.8)'   // DLQ - purple
+                        ]
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        } else {
+            statusChart.data.labels = Object.keys(statusCounts);
+            statusChart.data.datasets[0].data = Object.values(statusCounts);
+            statusChart.update();
+        }
+
+        // Queue Chart - show job counts per queue by status
+        if (!queueChart && data.queues.length > 0) {
+            queueChart = new Chart(document.getElementById('queue-chart'), {
+                type: 'bar',
+                data: {
+                    labels: data.queues.map(q => q.name),
+                    datasets: [{
+                        label: 'Active (Running+Claimed)',
+                        data: data.queues.map(q => 0), // Would need per-queue stats
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }, {
+                        label: 'Paused',
+                        data: data.queues.map(q => q.is_paused ? 1 : 0),
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
+
+        // Worker Chart
+        if (!workerChart && data.workers.length > 0) {
+            workerChart = new Chart(document.getElementById('worker-chart'), {
+                type: 'bar',
+                data: {
+                    labels: data.workers.map(w => w.hostname.slice(0, 15)),
+                    datasets: [{
+                        label: 'Current Jobs',
+                        data: data.workers.map(w => w.current_jobs || 0),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }, {
+                        label: 'Capacity',
+                        data: data.workers.map(w => w.concurrency_limit),
+                        backgroundColor: 'rgba(209, 213, 219, 0.8)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        } else if (workerChart && data.workers.length > 0) {
+            workerChart.data.labels = data.workers.map(w => w.hostname.slice(0, 15));
+            workerChart.data.datasets[0].data = data.workers.map(w => w.current_jobs || 0);
+            workerChart.data.datasets[1].data = data.workers.map(w => w.concurrency_limit);
+            workerChart.update();
+        }
+    }
+
+    // Initial load and auto-refresh
+    refreshData();
+    setInterval(refreshData, 5000);
+</script>
+{% endblock %}
