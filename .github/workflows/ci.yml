@@ -92,32 +92,4 @@ jobs:
           name: security-report
           path: bandit-report.json
 
-  build-and-deploy:
-    needs: lint-and-test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: |
-          docker build -t distributed-job-scheduler:${{ github.sha }} .
-
-      - name: Login to container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push Docker image
-        run: |
-          docker tag distributed-job-scheduler:${{ github.sha }} ghcr.io/${{ github.repository }}/distributed-job-scheduler:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/distributed-job-scheduler:${{ github.sha }}
-
-      - name: Deploy to staging (example)
-        run: |
-          echo "Deploy to staging environment"
-          # Add your deployment commands here
-          # e.g., kubectl apply, railway deploy, render deploy, etc.

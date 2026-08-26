@@ -224,7 +224,7 @@ class DistributedLock:
 - Zero build step (no Webpack/Vite)
 - Works without Node.js in production
 - SEO-friendly (though not needed for dashboard)
-- Simple deployment (single Docker image)
+- Simple deployment (single process via Gunicorn)
 
 **Trade-offs:**
 - No reactive UI

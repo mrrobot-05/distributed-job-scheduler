@@ -416,7 +416,6 @@ distributed_job_scheduler/
 ├── manage.py                     # Django management script
 ├── requirements.txt              # Python dependencies
 ├── requirements-ci.txt           # CI tool dependencies (pinned)
-├── Dockerfile                    # Multi-stage Docker build
 ├── verify_all.py                 # End-to-end verification script
 └── .gitignore                    # Git ignore rules
 ```
@@ -469,24 +468,6 @@ gunicorn distributed_job_scheduler.wsgi:application \
   --threads 4 \
   --timeout 120
 ```
-
-### Docker
-
-```bash
-# Build
-docker build -t distributed-job-scheduler .
-
-# Run
-docker run -p 8000:8000 \
-  -e SECRET_KEY=your-secret-key \
-  -e DATABASE_URL=postgresql://user:pass@host:port/db \
-  -e DJANGO_SETTINGS_MODULE=distributed_job_scheduler.settings.production \
-  distributed-job-scheduler
-```
-
-The Dockerfile uses a multi-stage build:
-1. **Builder stage**: Installs system dependencies (gcc, libpq-dev) and Python packages
-2. **Final stage**: Copies packages, creates non-root user, collects static files, runs Gunicorn
 
 ### Environment-Specific Settings
 
