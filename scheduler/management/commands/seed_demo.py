@@ -226,7 +226,7 @@ class Command(BaseCommand):
                 },
                 {
                     'name': 'cleanup_temp_files', 'queue': low_queue,
-                    'payload': {'path': '/tmp', 'older_than_days': 7},
+                    'payload': {'path': '/var/data/staging', 'older_than_days': 7},
                     'status': 'QUEUED',
                 },
                 {

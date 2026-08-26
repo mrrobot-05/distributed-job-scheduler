@@ -382,7 +382,8 @@ class SchedulerScheduledJobTest(BaseSchedulerTest):
         jobs = Job.objects.filter(name='scheduled_test_job', queue=self.queue)
         self.assertEqual(jobs.count(), 1)
         created_job = jobs.first()
-        assert created_job is not None  # guaranteed: Job was just created by process_scheduled_jobs
+        if created_job is None:
+            self.fail('Scheduled job was not created')
         self.assertEqual(created_job.payload, {'test': 'data'})
         self.assertEqual(created_job.cron_expression, '* * * * *')
         self.assertEqual(created_job.status, 'QUEUED')
@@ -714,7 +715,7 @@ class APIKeyGenerationTest(TransactionTestCase):
         from scheduler.models import Organization, Project
         User = get_user_model()
 
-        user = User.objects.create_user(username='ui_user_1', password='test123')
+        user = User.objects.create_user(username='ui_user_1', password='test123')  # nosec B106
         org = Organization.objects.create(
             name='UI Org', slug='ui-org', user=user,
         )
@@ -985,7 +986,7 @@ class AuthRateLimitingTest(TransactionTestCase):
         for i in range(21):
             response = c.post('/login/', {
                 'username': 'nonexistent',
-                'password': 'wrong',
+                'password': 'wrong',  # nosec B105
             }, follow=True)
         self.assertEqual(response.status_code, 429)
 

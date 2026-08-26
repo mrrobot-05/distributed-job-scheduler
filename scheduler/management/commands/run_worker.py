@@ -154,13 +154,15 @@ class Command(BaseCommand):
     def handle_shutdown(self, signum, frame):
         self.stdout.write(self.style.WARNING('Shutdown signal received...'))
         self.shutdown = True
-        assert self.worker is not None  # set in handle() before any signal handler runs
+        if self.worker is None:
+            raise RuntimeError('Worker not initialized')
         self.worker.status = 'SHUTTING_DOWN'
         self.worker.save()
         self.shutdown_event.set()
 
     def update_heartbeat(self):
-        assert self.worker is not None  # set in handle() before calling update_heartbeat
+        if self.worker is None:
+            raise RuntimeError('Worker not initialized')
         self.worker.last_heartbeat = timezone.now()
         self.worker.current_jobs = self.active_jobs
         self.worker.save(update_fields=['last_heartbeat', 'current_jobs', 'updated_at'])
@@ -236,7 +238,8 @@ class Command(BaseCommand):
             pass  # active_jobs decremented in check_completed_futures
 
     def execute_job(self, job):
-        assert self.worker is not None  # set in handle() before calling execute_job
+        if self.worker is None:
+            raise RuntimeError('Worker not initialized')
         execution = JobExecution.objects.create(
             job=job,
             worker=self.worker,
