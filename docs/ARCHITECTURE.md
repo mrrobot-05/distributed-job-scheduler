@@ -7,28 +7,49 @@ The Distributed Job Scheduler is a Django-based platform for reliable, scalable 
 ## Core Components
 
 ### 1. API Layer (Django REST Framework)
-- **Authentication**: API key-based (X-Project-Header)
+- **Authentication**: API key-based (`X-Project-Key` header) via `ProjectKeyAuthentication`
+- **Session Authentication**: Django session auth for web UI (`SessionAuthentication` in DRF defaults)
 - **Endpoints**: RESTful CRUD for all entities
-- **Serialization**: DRF serializers with validation
+- **Serialization**: DRF serializers with cross-project scoping validation
 - **Documentation**: Auto-generated OpenAPI 3.0 via drf-spectacular
 
 ### 2. Database Layer (PostgreSQL)
 - **Primary coordination mechanism**: Row-level locking via `SELECT FOR UPDATE SKIP LOCKED`
 - **MVCC**: Multi-Version Concurrency Control for read scalability
-- **Advisory Locks**: Distributed locking for scheduled job creation
+- **Advisory Locks**: PostgreSQL advisory locks for scheduled job creation coordination (via `DistributedLock` in `run_worker.py`)
 
 ### 3. Worker Daemon
 - **Process Model**: Single process with ThreadPoolExecutor
 - **Concurrency**: Configurable per-worker and per-queue
 - **Heartbeat**: Periodic updates to Worker table
 - **Graceful Shutdown**: SIGINT/SIGTERM handling
+- **Distributed Lock**: Uses `pg_try_advisory_lock()` for scheduled job creation (no-op on SQLite)
 
 ### 4. Scheduler (Cron-like)
 - **Mechanism**: ScheduledJob model with cron expressions
 - **Execution**: Worker polls due scheduled jobs
-- **Locking**: PostgreSQL advisory locks prevent duplicates
+- **Locking**: PostgreSQL advisory locks prevent duplicate job creation across workers
+
+### 5. Multi-Tenancy
+- **Hierarchy**: Organization → Project → Queue → Job
+- **User linkage**: `Organization.user` FK links organizations to Django users
+- **Web UI isolation**: All page views filter by `organization__user=request.user`
+- **API isolation**: All API queries filtered by `project=request.auth`
+
+### 6. Rate Limiting
+- **Middleware**: `RateLimitMiddleware` in `scheduler/middleware.py`
+- **Auth endpoints**: POST to `/login/` and `/register/` rate-limited to 20 requests/minute/IP
+- **API endpoints**: Configurable per-endpoint via `RateLimitRule` model
+- **Implementation**: Django cache-based with `X-RateLimit-*` response headers
 
 ## Data Flow
+
+### Registration Flow
+```
+POST /register/ → Create User → Create Organization (linked to User)
+  → Create Project (with secrets.token_urlsafe(32) API key)
+  → Create default Queue → Redirect to login
+```
 
 ### Job Submission
 ```
@@ -101,6 +122,7 @@ Each worker has a `concurrency_limit` controlling ThreadPoolExecutor size.
 - `ScheduledJob(is_active, next_run_at)` - Due job polling
 
 ### Cascading Behavior
+- Organization → Project: CASCADE
 - Project → Queue: CASCADE
 - Queue → Job: CASCADE
 - Job → JobExecution: CASCADE
@@ -109,18 +131,30 @@ Each worker has a `concurrency_limit` controlling ThreadPoolExecutor size.
 
 ## Security
 
-### Authentication
-- API keys are UUIDs, unguessable
+### API Authentication
+- API keys are cryptographically random strings (`secrets.token_urlsafe(32)`, 43 characters)
+- Passed via `X-Project-Key` HTTP header
 - Per-project isolation enforced at query level
-- No session/cookie authentication for API
+- Inactive projects are rejected
+
+### Web UI Authentication
+- Django session-based authentication (`@login_required` for all page views)
+- Registration at `/register/` creates User → Organization → Project → Queue
+- All page views filter by `organization__user=request.user`
 
 ### Data Isolation
-- All queries filtered by `project=request.auth`
-- No cross-project data leakage possible
+- API: All queries filtered by `project=request.auth`
+- Web UI: All queries filtered by `organization__user=request.user`
+- Cross-project data leakage prevented at serializer and view level
 
 ### Rate Limiting
-- Configurable per-endpoint via RateLimitRule model
-- Applied via middleware (future enhancement)
+- Auth endpoints: 20 requests/minute/IP for `/login/` and `/register/` POST
+- API endpoints: Configurable per-endpoint via `RateLimitRule` model
+- Implemented via `RateLimitMiddleware` using Django cache
+
+### Admin Security
+- API keys masked in admin list display (`abcd...7890`)
+- Full key visible in admin readonly fields for management
 
 ## Scalability Considerations
 

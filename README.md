@@ -12,7 +12,7 @@ A production-ready distributed job scheduling platform built with Django and Pos
 - **Worker Management**: Heartbeat monitoring, graceful shutdown, dead worker recovery
 - **Real-time Dashboard**: Live metrics, job explorer, execution logs, queue health
 - **Workflow Dependencies**: Job dependency chains (DAG)
-- **Rate Limiting**: Per-endpoint rate limiting rules
+- **Rate Limiting**: Per-endpoint rate limiting rules via middleware, plus auth endpoint rate limiting
 - **OpenAPI Documentation**: Auto-generated Swagger/ReDoc
 - **Web UI**: Full CRUD for Projects, Queues, Jobs, Workers, Scheduled Jobs, Batch Jobs, DLQ
 
@@ -37,7 +37,6 @@ A production-ready distributed job scheduling platform built with Django and Pos
 
 - Python 3.11+
 - PostgreSQL 14+ (or SQLite for development)
-- Redis (optional, for future WebSocket support)
 
 ### Installation
 
@@ -53,9 +52,10 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
-cp .env.example .env
+# (Optional) For production deployment, copy and configure environment variables:
+# cp .env.example .env
 # Edit .env with your settings
+# Local development uses hardcoded settings in settings/local.py — no .env needed
 
 # Run migrations
 python manage.py migrate
@@ -63,21 +63,22 @@ python manage.py migrate
 # Create a superuser (for admin access)
 python manage.py createsuperuser
 
-# Create initial project and queue via Django shell
-python manage.py shell -c "
-from scheduler.models import Project, Queue
-p = Project.objects.create(name='My Project', api_key='your-api-key-here')
-Queue.objects.create(project=p, name='default', priority=1, concurrency_limit=5)
-"
-
 # Start the development server
 python manage.py runserver
 ```
 
+### Registration and First Login
+
+1. Navigate to http://localhost:8000/register/
+2. Fill in username, email, organization name, and project name
+3. This automatically creates: User → Organization → Project (with secure API key) → default Queue
+4. Log in at http://localhost:8000/login/
+5. Your API key is visible on the Project detail page
+
 ### Running Workers
 
 ```bash
-# Start a worker (replace with your API key)
+# Start a worker (replace with your API key from registration)
 python manage.py run_worker --project_key=your-api-key --concurrency=5
 
 # Start worker for specific queues only
@@ -104,12 +105,12 @@ The following web UI pages are available for managing the system:
 | Projects | `/projects/` | List, create, edit projects |
 | Project Detail | `/projects/<uuid>/` | View project details, queues, create queues |
 | Queues | `/projects/<uuid>/queues/` | List queues for a project |
-| Queue Detail | `/queues/<uuid>/` | View queue stats, jobs, pause/resume |
+| Queue Detail | `/queues/<id>/` | View queue stats, jobs, pause/resume |
 | Job Detail | `/jobs/<uuid>/` | View job details, execution history, logs, retry/cancel |
-| Workers | `/workers/` | List workers, status, heartbeat, current jobs |
-| Scheduled Jobs | `/scheduled/` | List, create, edit, activate/deactivate cron jobs |
-| Batch Jobs | `/jobs/batch/` | Submit and track batch jobs |
-| Dead Letter Queue | `/dlq/` | View failed jobs, retry from DLQ |
+| Workers | `/workers/list/` | List workers, status, heartbeat, current jobs |
+| Scheduled Jobs | `/scheduled/list/` | List, create, edit, activate/deactivate cron jobs |
+| Batch Jobs | `/jobs/batch/page/` | Submit and track batch jobs |
+| Dead Letter Queue | `/dlq/page/` | View failed jobs, retry from DLQ |
 | API Docs (Swagger) | `/api/docs/` | Interactive Swagger UI |
 | API Docs (ReDoc) | `/api/redoc/` | ReDoc documentation |
 | OpenAPI Schema | `/api/schema/` | Raw OpenAPI 3.0 schema |
@@ -118,7 +119,7 @@ The following web UI pages are available for managing the system:
 
 ### Authentication
 
-All API requests require the `X-Project-Key` header:
+All API requests require the `X-Project-Key` header. API keys are cryptographically random strings generated during project creation (via `secrets.token_urlsafe(32)`).
 
 ```bash
 curl -H "X-Project-Key: your-api-key" http://localhost:8000/api/jobs/
@@ -272,7 +273,7 @@ Real-time metrics with charts:
 
 ### Projects (`/projects/`)
 - List all projects with queue/job counts
-- Create new project (generates API key)
+- Create new project (generates API key automatically)
 - View project detail with queue list
 - Edit project name/active status
 
@@ -308,21 +309,65 @@ Real-time metrics with charts:
 - View error message, failure reason, retry count
 - One-click retry from DLQ
 
-### Workers Management
-- Register workers via API
-- Heartbeat endpoint for health monitoring
-- Automatic dead worker detection (5 min timeout)
-- Orphaned job recovery (CLAIMED/RUNNING → QUEUED)
+## Authentication and Security
+
+### API Authentication
+- API keys are generated using `secrets.token_urlsafe(32)` (cryptographically secure)
+- Passed via `X-Project-Key` HTTP header
+- Per-project data isolation enforced at query level
+
+### Web UI Authentication
+- Django session-based authentication (`@login_required`)
+- Login at `/login/`, registration at `/register/`
+- Registration auto-creates: User → Organization → Project → default Queue
+
+### Rate Limiting
+- **Auth endpoints**: POST to `/login/` and `/register/` are rate-limited to 20 requests per minute per IP address
+- **API endpoints**: Configurable per-endpoint rate limiting via `RateLimitRule` model and `RateLimitMiddleware`
+
+### Admin Security
+- API keys are masked in Django admin interface (e.g., `abcd...7890`)
+- Full API key visible only in project detail view and admin readonly fields
+
+## Settings Configuration
+
+The application uses a settings package at `distributed_job_scheduler/settings/`:
+
+```
+distributed_job_scheduler/settings/
+├── __init__.py      # Auto-selects settings module based on DJANGO_SETTINGS_MODULE
+├── base.py          # Shared settings (PostgreSQL, DRF, logging, middleware)
+├── local.py         # Development settings (SQLite, DEBUG=True)
+└── production.py    # Production settings (SSL, HSTS, file logging)
+```
+
+**Settings auto-selection**: `manage.py` defaults to `distributed_job_scheduler.settings`, which triggers `settings/__init__.py`. This module reads `DJANGO_SETTINGS_MODULE` and falls back to `settings.local` if not set or if set to the package itself.
+
+### Local Development (default)
+- SQLite database
+- `DEBUG=True`
+- No SSL/HSTS
+- CORS allowed for all origins
+
+### Production
+Set `DJANGO_SETTINGS_MODULE=distributed_job_scheduler.settings.production`:
+- PostgreSQL via `DATABASE_URL`
+- `DEBUG=False`
+- SSL redirects, HSTS, secure cookies
+- SMTP email backend
+- File-based logging
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SECRET_KEY` | Django secret key | Required in production |
-| `DEBUG` | Debug mode | `True` |
-| `ALLOWED_HOSTS` | Comma-separated hosts | `localhost,127.0.0.1` |
-| `DATABASE_URL` | PostgreSQL connection string | SQLite fallback |
-| `DATABASE_URL` | Postgres: `postgresql://user:pass@host:port/db` | |
+| Variable | Description | Local (local.py) | Production (production.py) |
+|----------|-------------|-------------------|---------------------------|
+| `SECRET_KEY` | Django secret key | Hardcoded insecure dev key | **Required** (from env) |
+| `DEBUG` | Debug mode | Hardcoded `True` | Hardcoded `False` |
+| `ALLOWED_HOSTS` | Comma-separated hosts | Hardcoded `localhost,127.0.0.1,0.0.0.0` | **Required** (from env) |
+| `DATABASE_URL` | PostgreSQL connection string | SQLite (hardcoded, no env var) | **Required** (from env) |
+| `DJANGO_SETTINGS_MODULE` | Settings module path | `distributed_job_scheduler.settings.local` | `distributed_job_scheduler.settings.production` |
+
+> **Note**: `DEBUG` and `ALLOWED_HOSTS` are **not** read from environment variables in local development — they are hardcoded in `settings/local.py`. They are only configurable via environment in `settings/production.py`.
 
 ## Project Structure
 
@@ -332,7 +377,7 @@ distributed_job_scheduler/
 │   ├── management/commands/      # Custom management commands
 │   │   ├── run_worker.py         # Worker daemon
 │   │   └── seed_demo.py          # Demo data seeder
-│   ├── migrations/               # Database migrations
+│   ├── migrations/               # Database migrations (6 total)
 │   ├── templates/scheduler/      # HTML templates
 │   │   ├── base.html             # Base template with sidebar
 │   │   ├── dashboard.html        # Main dashboard
@@ -343,7 +388,7 @@ distributed_job_scheduler/
 │   │   ├── workers/              # Worker list template
 │   │   ├── scheduled/            # Scheduled job CRUD templates
 │   │   └── dlq/                  # DLQ list template
-│   ├── models.py                 # Database models
+│   ├── models.py                 # Database models (11 models)
 │   ├── views.py                  # API views
 │   ├── page_views.py             # Web UI page views
 │   ├── serializers.py            # DRF serializers
@@ -355,7 +400,8 @@ distributed_job_scheduler/
 │   ├── admin.py                  # Admin configuration
 │   └── tests.py                  # Integration tests
 ├── distributed_job_scheduler/    # Project settings
-│   ├── settings/
+│   ├── settings/                 # Settings package
+│   │   ├── __init__.py           # Auto-selects settings module
 │   │   ├── base.py               # Common settings
 │   │   ├── local.py              # Development settings
 │   │   └── production.py         # Production settings
@@ -369,6 +415,9 @@ distributed_job_scheduler/
 ├── templates/                    # Global templates
 ├── manage.py                     # Django management script
 ├── requirements.txt              # Python dependencies
+├── requirements-ci.txt           # CI tool dependencies (pinned)
+├── Dockerfile                    # Multi-stage Docker build
+├── verify_all.py                 # End-to-end verification script
 └── .gitignore                    # Git ignore rules
 ```
 
@@ -381,9 +430,28 @@ python manage.py test scheduler
 # Run with verbose output
 python manage.py test scheduler -v 2
 
+# Run specific test class
+python manage.py test scheduler.SchedulerIntegrationTest
+
 # Run specific test
 python manage.py test scheduler.SchedulerIntegrationTest.test_full_job_lifecycle
 ```
+
+### Test Suite
+
+The test suite includes 51 tests covering:
+- Job lifecycle (submit, claim, execute, complete, retry, DLQ)
+- Worker management (heartbeat, graceful shutdown, dead worker recovery)
+- Scheduled jobs (cron scheduling, due job processing)
+- Batch jobs (creation, progress tracking)
+- Security (cross-project isolation, API key validation)
+- API key generation (secrets.token_urlsafe(32))
+- Serializer project scoping (cross-project FK rejection)
+- Auth rate limiting (login/register rate limiting)
+- Admin API key masking
+- Timezone handling
+
+**Note**: Concurrent job claiming tests require PostgreSQL `SELECT FOR UPDATE SKIP LOCKED`. These tests are skipped when running against SQLite.
 
 ## Production Deployment
 
@@ -404,19 +472,21 @@ gunicorn distributed_job_scheduler.wsgi:application \
 
 ### Docker
 
-```dockerfile
-FROM python:3.11-slim
+```bash
+# Build
+docker build -t distributed-job-scheduler .
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-RUN python manage.py collectstatic --noinput
-
-EXPOSE 8000
-CMD ["gunicorn", "distributed_job_scheduler.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Run
+docker run -p 8000:8000 \
+  -e SECRET_KEY=your-secret-key \
+  -e DATABASE_URL=postgresql://user:pass@host:port/db \
+  -e DJANGO_SETTINGS_MODULE=distributed_job_scheduler.settings.production \
+  distributed-job-scheduler
 ```
+
+The Dockerfile uses a multi-stage build:
+1. **Builder stage**: Installs system dependencies (gcc, libpq-dev) and Python packages
+2. **Final stage**: Copies packages, creates non-root user, collects static files, runs Gunicorn
 
 ### Environment-Specific Settings
 
@@ -449,14 +519,16 @@ python manage.py seed_demo
 
 This creates:
 - User: `demo@demo.com` / `demo123`
-- Organization: "Demo Organization"
-- Projects: "API Project" (demo-api-key-1), "Batch Project" (demo-api-key-2)
+- Organization: "Demo Organization" (linked to demo user)
+- Projects: "API Project" and "Batch Project" (with auto-generated secure API keys)
 - Queues: high-priority, default, low-priority, batch-queue
 - 21 sample jobs (various statuses)
 - 1 ScheduledJob (daily-report cron)
 - 1 Worker registration
 - 1 BatchJob (3 jobs)
 - 2 DLQ entries
+
+After seeding, the demo API keys are printed to the console. Use them with the `--project_key` flag when starting workers.
 
 ## Monitoring
 

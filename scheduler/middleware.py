@@ -6,11 +6,37 @@ from django.conf import settings
 from .models import RateLimitRule
 
 
+def _get_client_ip(request):
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+AUTH_RATE_LIMIT_MAX = 20
+AUTH_RATE_LIMIT_WINDOW = 60
+
+
 class RateLimitMiddleware(MiddlewareMixin):
     """Rate limiting middleware based on RateLimitRule model"""
 
     def process_request(self, request):
-        # Skip rate limiting for non-API paths
+        # Rate limit auth endpoints (login/register) by IP
+        if request.path in ('/login/', '/register/') and request.method == 'POST':
+            ip = _get_client_ip(request)
+            if ip:
+                cache_key = f"authratelimit:{ip}:{request.path}"
+                current = cache.get(cache_key, 0)
+                if current >= AUTH_RATE_LIMIT_MAX:
+                    return JsonResponse(
+                        {
+                            'error': 'Too many authentication attempts. Please try again later.',
+                        },
+                        status=429
+                    )
+                cache.set(cache_key, current + 1, AUTH_RATE_LIMIT_WINDOW)
+
+        # Skip API rate limiting for non-API paths
         if not request.path.startswith('/api/'):
             return None
 
@@ -21,7 +47,7 @@ class RateLimitMiddleware(MiddlewareMixin):
             if api_key:
                 try:
                     from .models import Project
-                    project = Project.objects.get(api_key=api_key)
+                    project = Project.objects.get(api_key=api_key, is_active=True)
                     request.project = project
                 except Project.DoesNotExist:
                     pass

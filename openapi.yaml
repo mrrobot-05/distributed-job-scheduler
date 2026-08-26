@@ -8,782 +8,1533 @@ info:
     email: support@example.com
   license:
     name: MIT
+security:
+  - projectKey: []
 paths:
-  /api/dlq/:
-    get:
-      operationId: dlq_retrieve
-      tags:
-      - dlq
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/dlq/{dlq_id}/retry/:
-    post:
-      operationId: dlq_retry_create
-      parameters:
-      - in: path
-        name: dlq_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - dlq
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/:
-    get:
-      operationId: jobs_retrieve
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/{job_id}/:
-    get:
-      operationId: jobs_retrieve_2
-      parameters:
-      - in: path
-        name: job_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: jobs_create
-      parameters:
-      - in: path
-        name: job_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/{job_id}/logs/:
-    get:
-      operationId: jobs_logs_retrieve
-      parameters:
-      - in: path
-        name: job_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/batch/:
-    post:
-      operationId: jobs_batch_create
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/batch/{batch_id}/:
-    get:
-      operationId: jobs_batch_retrieve
-      parameters:
-      - in: path
-        name: batch_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/jobs/submit/:
-    post:
-      operationId: jobs_submit_create
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/queues/:
-    get:
-      operationId: queues_retrieve
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: queues_create
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/queues/{queue_id}/:
-    get:
-      operationId: queues_retrieve_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    patch:
-      operationId: queues_partial_update
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    delete:
-      operationId: queues_destroy
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /api/queues/{queue_id}/pause/:
-    post:
-      operationId: queues_pause_create
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/queues/{queue_id}/resume/:
-    post:
-      operationId: queues_resume_create
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/queues/{queue_id}/stats/:
-    get:
-      operationId: queues_stats_retrieve
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/scheduled/:
-    get:
-      operationId: scheduled_retrieve
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: scheduled_create
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/scheduled/{scheduled_id}/:
-    get:
-      operationId: scheduled_retrieve_2
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    patch:
-      operationId: scheduled_partial_update
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    delete:
-      operationId: scheduled_destroy
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
   /api/stats/:
     get:
       operationId: stats_retrieve
+      summary: Get project statistics
       tags:
-      - stats
+      - Stats
       security:
-      - {}
+      - projectKey: []
       responses:
         '200':
-          description: No response body
-  /api/workers/:
+          description: Project statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/queues/:
     get:
-      operationId: workers_retrieve
+      operationId: queues_list
+      summary: List all queues for the project
       tags:
-      - workers
+      - Queues
       security:
-      - {}
+      - projectKey: []
       responses:
         '200':
-          description: No response body
-  /api/workers/heartbeat/:
+          description: List of queues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
-      operationId: workers_heartbeat_create
+      operationId: queues_create
+      summary: Create a new queue
       tags:
-      - workers
+      - Queues
       security:
-      - {}
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueCreateRequest'
+      responses:
+        '201':
+          description: Queue created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/queues/{queue_id}/:
+    get:
+      operationId: queues_retrieve
+      summary: Get a queue by ID
+      tags:
+      - Queues
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
       responses:
         '200':
-          description: No response body
-  /api/workers/register/:
+          description: Queue details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: queues_partial_update
+      summary: Update a queue
+      tags:
+      - Queues
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueUpdateRequest'
+      responses:
+        '200':
+          description: Queue updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: queues_destroy
+      summary: Delete a queue
+      tags:
+      - Queues
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
+      responses:
+        '204':
+          description: Queue deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/queues/{queue_id}/pause/:
     post:
-      operationId: workers_register_create
+      operationId: queues_pause_create
+      summary: Pause a queue
       tags:
-      - workers
+      - Queues
       security:
-      - {}
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
       responses:
         '200':
-          description: No response body
+          description: Queue paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/queues/{queue_id}/resume/:
+    post:
+      operationId: queues_resume_create
+      summary: Resume a paused queue
+      tags:
+      - Queues
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
+      responses:
+        '200':
+          description: Queue resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/queues/{queue_id}/stats/:
+    get:
+      operationId: queues_stats_retrieve
+      summary: Get queue statistics
+      tags:
+      - Queues
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/QueueId'
+      responses:
+        '200':
+          description: Queue statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/jobs/submit/:
+    post:
+      operationId: jobs_submit_create
+      summary: Submit a new job
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobSubmitRequest'
+      responses:
+        '201':
+          description: Job submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSubmitResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Queue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '409':
+          description: Duplicate unique_key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+  /api/jobs/:
+    get:
+      operationId: jobs_list
+      summary: List jobs with optional filters
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [QUEUED, SCHEDULED, CLAIMED, RUNNING, COMPLETED, FAILED, DLQ]
+        description: Filter by job status
+      - name: queue
+        in: query
+        schema:
+          type: string
+        description: Filter by queue name
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/jobs/{job_id}/:
+    get:
+      operationId: jobs_retrieve
+      summary: Get job details with execution history
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: jobs_action
+      summary: Perform an action on a job (retry or cancel)
+      description: |
+        Dispatch a retry or cancel action on a job.
+        - `retry`: Only allowed for FAILED or DLQ jobs. Resets status to QUEUED.
+        - `cancel`: Only allowed for QUEUED, SCHEDULED, or CLAIMED jobs. Sets status to FAILED.
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobActionRequest'
+      responses:
+        '200':
+          description: Action performed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobActionResponse'
+        '400':
+          description: Invalid action or job state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/jobs/{job_id}/logs/:
+    get:
+      operationId: jobs_logs_list
+      summary: Get job execution logs
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      - name: execution_id
+        in: query
+        schema:
+          type: integer
+        description: Filter logs by specific execution ID
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of job logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobLogResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/jobs/{job_id}/retry/:
+    post:
+      operationId: jobs_retry_create
+      summary: Retry a failed or DLQ job
+      description: Resets job status to QUEUED, clears retry count, and removes DLQ entry if present.
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job retried
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobActionResponse'
+        '400':
+          description: Job not in retryable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/jobs/batch/:
+    post:
+      operationId: jobs_batch_create
+      summary: Submit a batch of jobs
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchJobSubmitRequest'
+      responses:
+        '201':
+          description: Batch created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchJobSubmitResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Queue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+  /api/jobs/batch/{batch_id}/:
+    get:
+      operationId: jobs_batch_retrieve
+      summary: Get batch job details with child jobs
+      tags:
+      - Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: Batch job details with nested jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchJobDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/dlq/:
+    get:
+      operationId: dlq_list
+      summary: List dead letter queue entries
+      tags:
+      - Dead Letter Queue
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated DLQ entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDLQResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/dlq/{dlq_id}/retry/:
+    post:
+      operationId: dlq_retry_create
+      summary: Retry a DLQ entry
+      description: Re-queues the associated job and marks the DLQ entry as resolved.
+      tags:
+      - Dead Letter Queue
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/DlqId'
+      responses:
+        '200':
+          description: DLQ entry retried
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobActionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/scheduled/:
+    get:
+      operationId: scheduled_list
+      summary: List scheduled jobs
+      tags:
+      - Scheduled Jobs
+      security:
+      - projectKey: []
+      responses:
+        '200':
+          description: List of scheduled jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduledJobResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: scheduled_create
+      summary: Create a scheduled job
+      tags:
+      - Scheduled Jobs
+      security:
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledJobCreateRequest'
+      responses:
+        '201':
+          description: Scheduled job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledJobResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Queue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+  /api/scheduled/{scheduled_id}/:
+    get:
+      operationId: scheduled_retrieve
+      summary: Get a scheduled job by ID
+      tags:
+      - Scheduled Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/ScheduledId'
+      responses:
+        '200':
+          description: Scheduled job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledJobResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: scheduled_partial_update
+      summary: Update a scheduled job
+      tags:
+      - Scheduled Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/ScheduledId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledJobUpdateRequest'
+      responses:
+        '200':
+          description: Scheduled job updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledJobResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: scheduled_destroy
+      summary: Delete a scheduled job
+      tags:
+      - Scheduled Jobs
+      security:
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/ScheduledId'
+      responses:
+        '204':
+          description: Scheduled job deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/workflows/:
     get:
-      operationId: workflows_retrieve
+      operationId: workflows_list
+      summary: List workflow dependencies
       tags:
-      - workflows
+      - Workflows
       security:
-      - {}
+      - projectKey: []
       responses:
         '200':
-          description: No response body
+          description: List of workflow dependencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkflowDependencyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       operationId: workflows_create
+      summary: Create a workflow dependency
       tags:
-      - workflows
+      - Workflows
       security:
-      - {}
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowDependencyCreateRequest'
       responses:
-        '200':
-          description: No response body
+        '201':
+          description: Workflow dependency created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDependencyResponse'
+        '400':
+          description: Validation error or self-dependency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
   /api/workflows/{dep_id}/:
     delete:
       operationId: workflows_destroy
-      parameters:
-      - in: path
-        name: dep_id
-        schema:
-          type: string
-          format: uuid
-        required: true
+      summary: Delete a workflow dependency
       tags:
-      - workflows
+      - Workflows
       security:
-      - {}
+      - projectKey: []
+      parameters:
+      - $ref: '#/components/parameters/DepId'
       responses:
         '204':
-          description: No response body
-  /dlq/:
-    get:
-      operationId: dlq_retrieve_2
+          description: Workflow dependency deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/workers/register/:
+    post:
+      operationId: workers_register_create
+      summary: Register a new worker
       tags:
-      - dlq
+      - Workers
       security:
-      - {}
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerRegistrationRequest'
+      responses:
+        '201':
+          description: Worker registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/workers/heartbeat/:
+    post:
+      operationId: workers_heartbeat_create
+      summary: Send worker heartbeat
+      tags:
+      - Workers
+      security:
+      - projectKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerHeartbeatRequest'
       responses:
         '200':
-          description: No response body
-  /dlq/{dlq_id}/retry/:
-    post:
-      operationId: dlq_retry_create_2
-      parameters:
-      - in: path
-        name: dlq_id
-        schema:
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerHeartbeatResponse'
+        '400':
+          description: Missing worker_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Worker not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+  /api/workers/:
+    get:
+      operationId: workers_list
+      summary: List all workers for the project
+      tags:
+      - Workers
+      security:
+      - projectKey: []
+      responses:
+        '200':
+          description: List of workers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    projectKey:
+      type: apiKey
+      in: header
+      name: X-Project-Key
+      description: API key for project authentication. Generated during project creation via secrets.token_urlsafe(32).
+  parameters:
+    QueueId:
+      name: queue_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Queue primary key (BigAutoField)
+    DlqId:
+      name: dlq_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Dead letter queue entry primary key (BigAutoField)
+    ScheduledId:
+      name: scheduled_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Scheduled job primary key (BigAutoField)
+    DepId:
+      name: dep_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Workflow dependency primary key (BigAutoField)
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Job UUID
+    BatchId:
+      name: batch_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Batch job UUID
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+      description: Page number
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 10
+        maximum: 50
+      description: Results per page (max 50)
+  responses:
+    Unauthorized:
+      description: Missing or invalid X-Project-Key header
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorDetail'
+  schemas:
+    ErrorDetail:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    ValidationErrorDetail:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: object
+          description: Field-level validation errors
+      required:
+      - error
+      - details
+    StatsResponse:
+      type: object
+      properties:
+        active_workers:
+          type: integer
+        jobs_queued:
+          type: integer
+        jobs_scheduled:
+          type: integer
+        jobs_claimed:
+          type: integer
+        jobs_running:
+          type: integer
+        jobs_completed:
+          type: integer
+        jobs_failed:
+          type: integer
+        jobs_dlq:
+          type: integer
+        queues:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              priority:
+                type: integer
+              concurrency_limit:
+                type: integer
+              is_paused:
+                type: boolean
+        workers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              hostname:
+                type: string
+              status:
+                type: string
+              concurrency_limit:
+                type: integer
+              current_jobs:
+                type: integer
+              last_heartbeat:
+                type: string
+                format: date-time
+        recent_jobs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              status:
+                type: string
+              queue:
+                type: string
+              scheduled_at:
+                type: string
+                format: date-time
+    QueueCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        priority:
+          type: integer
+          default: 1
+        concurrency_limit:
+          type: integer
+          default: 5
+        is_paused:
+          type: boolean
+          default: false
+        retry_policy:
+          type: object
+          default: {}
+      required:
+      - name
+    QueueUpdateRequest:
+      type: object
+      properties:
+        priority:
+          type: integer
+        concurrency_limit:
+          type: integer
+        is_paused:
+          type: boolean
+        retry_policy:
+          type: object
+    QueueResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        priority:
+          type: integer
+        concurrency_limit:
+          type: integer
+        is_paused:
+          type: boolean
+        retry_policy:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    QueueStatsResponse:
+      type: object
+      properties:
+        queue:
+          type: string
+        total_jobs:
+          type: integer
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        concurrency_limit:
+          type: integer
+        is_paused:
+          type: boolean
+    JobSubmitRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Job type/handler identifier
+        queue:
+          type: string
+          default: default
+          description: Queue name
+        payload:
+          type: object
+          default: {}
+          description: Job input data
+        unique_key:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Idempotency key (optional)
+        scheduled_at:
+          type: string
+          format: date-time
+          description: When to run the job (defaults to now)
+        cron_expression:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Cron expression for recurring jobs
+        max_retries:
+          type: integer
+          default: 3
+          minimum: 0
+        backoff_strategy:
+          type: string
+          enum: [FIXED, LINEAR, EXPONENTIAL]
+          default: FIXED
+        backoff_delay:
+          type: integer
+          default: 60
+          minimum: 0
+          description: Delay in seconds between retries
+        batch_id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - dlq
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/:
-    get:
-      operationId: jobs_retrieve_3
-      tags:
+          nullable: true
+          description: Associated batch job UUID
+        timeout_seconds:
+          type: integer
+          default: 300
+          minimum: 1
+      required:
+      - name
+    JobSubmitResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [QUEUED]
+        queue:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+    JobListResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        queue:
+          type: string
+        batch_id:
+          type: string
+          format: uuid
+          nullable: true
+    PaginatedJobListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobListResponse'
+    JobDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        payload:
+          type: object
+        unique_key:
+          type: string
+          nullable: true
+        scheduled_at:
+          type: string
+          format: date-time
+        cron_expression:
+          type: string
+          nullable: true
+        retry_count:
+          type: integer
+        max_retries:
+          type: integer
+        backoff_strategy:
+          type: string
+        backoff_delay:
+          type: integer
+        batch_id:
+          type: string
+          format: uuid
+          nullable: true
+        timeout_seconds:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        queue:
+          type: string
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobExecutionResponse'
+    JobExecutionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [SUCCESS, FAILURE]
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        attempt_number:
+          type: integer
+    JobActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [retry, cancel]
+          description: |
+            Action to perform:
+            - retry: Only for FAILED/DLQ jobs. Resets to QUEUED.
+            - cancel: Only for QUEUED/SCHEDULED/CLAIMED jobs. Sets to FAILED.
+      required:
+      - action
+    JobActionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: New job status after action
+    JobLogResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        level:
+          type: string
+          enum: [DEBUG, INFO, WARNING, ERROR]
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        meta:
+          type: object
+    PaginatedJobLogResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobLogResponse'
+    BatchJobSubmitRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        queue:
+          type: string
+          default: default
+          description: Queue name for all jobs in the batch
+        jobs:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              payload:
+                type: object
+                default: {}
+              unique_key:
+                type: string
+                nullable: true
+              scheduled_at:
+                type: string
+                format: date-time
+              cron_expression:
+                type: string
+                nullable: true
+              max_retries:
+                type: integer
+                default: 3
+              backoff_strategy:
+                type: string
+                enum: [FIXED, LINEAR, EXPONENTIAL]
+                default: FIXED
+              backoff_delay:
+                type: integer
+                default: 60
+              timeout_seconds:
+                type: integer
+                default: 300
+            required:
+            - name
+      required:
+      - name
       - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/{job_id}/:
-    get:
-      operationId: jobs_retrieve_4
-      parameters:
-      - in: path
-        name: job_id
-        schema:
+    BatchJobSubmitResponse:
+      type: object
+      properties:
+        batch_id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: jobs_create_2
-      parameters:
-      - in: path
-        name: job_id
-        schema:
+        name:
+          type: string
+        total_jobs:
+          type: integer
+        status:
+          type: string
+          example: created
+    BatchJobDetailResponse:
+      type: object
+      properties:
+        id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/{job_id}/logs/:
-    get:
-      operationId: jobs_logs_retrieve_2
-      parameters:
-      - in: path
-        name: job_id
-        schema:
+        name:
+          type: string
+        total_jobs:
+          type: integer
+        completed_jobs:
+          type: integer
+        failed_jobs:
+          type: integer
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobListResponse'
+    DLQResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        job:
+          $ref: '#/components/schemas/JobDetailResponse'
+        error_message:
+          type: string
+        failure_reason:
+          type: string
+        retry_count:
+          type: integer
+        last_attempt_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolved_by:
+          type: string
+          nullable: true
+        resolution_notes:
+          type: string
+          nullable: true
+    PaginatedDLQResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DLQResponse'
+    ScheduledJobCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        queue:
+          type: integer
+          description: Queue primary key (ID)
+        payload:
+          type: object
+          default: {}
+        cron_expression:
+          type: string
+          maxLength: 255
+        max_retries:
+          type: integer
+          default: 3
+        backoff_strategy:
+          type: string
+          enum: [FIXED, LINEAR, EXPONENTIAL]
+          default: FIXED
+        backoff_delay:
+          type: integer
+          default: 60
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - name
+      - queue
+      - cron_expression
+    ScheduledJobUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        queue:
+          type: integer
+          description: Queue primary key (ID)
+        payload:
+          type: object
+        cron_expression:
+          type: string
+          maxLength: 255
+        max_retries:
+          type: integer
+        backoff_strategy:
+          type: string
+          enum: [FIXED, LINEAR, EXPONENTIAL]
+        backoff_delay:
+          type: integer
+        is_active:
+          type: boolean
+    ScheduledJobResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        queue:
+          type: integer
+          description: Queue primary key (ID)
+        payload:
+          type: object
+        cron_expression:
+          type: string
+        next_run_at:
+          type: string
+          format: date-time
+        max_retries:
+          type: integer
+        backoff_strategy:
+          type: string
+        backoff_delay:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    WorkflowDependencyCreateRequest:
+      type: object
+      properties:
+        job:
           type: string
           format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/batch/:
-    post:
-      operationId: jobs_batch_create_2
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/batch/{batch_id}/:
-    get:
-      operationId: jobs_batch_retrieve_2
-      parameters:
-      - in: path
-        name: batch_id
-        schema:
+          description: Job UUID that depends on another job
+        depends_on:
           type: string
           format: uuid
-        required: true
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /jobs/submit/:
-    post:
-      operationId: jobs_submit_create_2
-      tags:
-      - jobs
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /queues/:
-    get:
-      operationId: queues_retrieve_3
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: queues_create_2
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /queues/{queue_id}/:
-    get:
-      operationId: queues_retrieve_4
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+          description: Job UUID that must complete first
+      required:
+      - job
+      - depends_on
+    WorkflowDependencyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        job:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    patch:
-      operationId: queues_partial_update_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+        job_name:
+          type: string
+        depends_on:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    delete:
-      operationId: queues_destroy_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+        depends_on_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    WorkerRegistrationRequest:
+      type: object
+      properties:
+        hostname:
+          type: string
+          maxLength: 255
+        concurrency_limit:
+          type: integer
+          default: 10
+      required:
+      - hostname
+    WorkerRegistrationResponse:
+      type: object
+      properties:
+        id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /queues/{queue_id}/pause/:
-    post:
-      operationId: queues_pause_create_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+        hostname:
+          type: string
+        status:
+          type: string
+        concurrency_limit:
+          type: integer
+        last_heartbeat:
+          type: string
+          format: date-time
+    WorkerHeartbeatRequest:
+      type: object
+      properties:
+        worker_id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /queues/{queue_id}/resume/:
-    post:
-      operationId: queues_resume_create_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+      required:
+      - worker_id
+    WorkerHeartbeatResponse:
+      type: object
+      properties:
+        id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /queues/{queue_id}/stats/:
-    get:
-      operationId: queues_stats_retrieve_2
-      parameters:
-      - in: path
-        name: queue_id
-        schema:
+        hostname:
+          type: string
+        status:
+          type: string
+        last_heartbeat:
+          type: string
+          format: date-time
+    WorkerResponse:
+      type: object
+      properties:
+        id:
           type: string
           format: uuid
-        required: true
-      tags:
-      - queues
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /scheduled/:
-    get:
-      operationId: scheduled_retrieve_3
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: scheduled_create_2
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /scheduled/{scheduled_id}/:
-    get:
-      operationId: scheduled_retrieve_4
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
+        hostname:
           type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    patch:
-      operationId: scheduled_partial_update_2
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
+        status:
           type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    delete:
-      operationId: scheduled_destroy_2
-      parameters:
-      - in: path
-        name: scheduled_id
-        schema:
+        concurrency_limit:
+          type: integer
+        current_jobs:
+          type: integer
+        last_heartbeat:
           type: string
-          format: uuid
-        required: true
-      tags:
-      - scheduled
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /stats/:
-    get:
-      operationId: stats_retrieve_2
-      tags:
-      - stats
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /workers/:
-    get:
-      operationId: workers_retrieve_2
-      tags:
-      - workers
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /workers/heartbeat/:
-    post:
-      operationId: workers_heartbeat_create_2
-      tags:
-      - workers
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /workers/register/:
-    post:
-      operationId: workers_register_create_2
-      tags:
-      - workers
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /workflows/:
-    get:
-      operationId: workflows_retrieve_2
-      tags:
-      - workflows
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: workflows_create_2
-      tags:
-      - workflows
-      security:
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /workflows/{dep_id}/:
-    delete:
-      operationId: workflows_destroy_2
-      parameters:
-      - in: path
-        name: dep_id
-        schema:
+          format: date-time
+        metadata:
+          type: object
+        created_at:
           type: string
-          format: uuid
-        required: true
-      tags:
-      - workflows
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-components: {}
+          format: date-time
 tags:
 - name: Jobs
   description: Job management endpoints
@@ -791,8 +1542,6 @@ tags:
   description: Queue configuration and management
 - name: Workers
   description: Worker registration and heartbeat
-- name: Batch Jobs
-  description: Batch job submission and tracking
 - name: Dead Letter Queue
   description: Failed job management
 - name: Scheduled Jobs

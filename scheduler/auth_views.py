@@ -30,14 +30,15 @@ class RegisterForm(UserCreationForm):
                 # Create organization
                 org = Organization.objects.create(
                     name=self.cleaned_data["organization_name"],
-                    slug=self.cleaned_data["organization_name"].lower().replace(" ", "-")
+                    slug=self.cleaned_data["organization_name"].lower().replace(" ", "-"),
+                    user=user,
                 )
                 # Create project with API key
-                import uuid
+                import secrets
                 project = Project.objects.create(
                     organization=org,
                     name=self.cleaned_data["project_name"],
-                    api_key=str(uuid.uuid4()),
+                    api_key=secrets.token_urlsafe(32),
                     is_active=True
                 )
                 # Create default queue

@@ -278,7 +278,14 @@ class ScheduledJobSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "next_run_at", "created_at", "updated_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'auth'):
+            project = request.auth
+            self.fields['queue'].queryset = Queue.objects.filter(project=project)
 
 
 class WorkflowDependencySerializer(serializers.ModelSerializer):
@@ -297,3 +304,11 @@ class WorkflowDependencySerializer(serializers.ModelSerializer):
             "depends_on_name",
             "created_at",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'auth'):
+            project = request.auth
+            self.fields['job'].queryset = Job.objects.filter(queue__project=project)
+            self.fields['depends_on'].queryset = Job.objects.filter(queue__project=project)

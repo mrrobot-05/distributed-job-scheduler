@@ -85,7 +85,7 @@ class Command(BaseCommand):
         queue_names = options['queues'].split(',') if options['queues'] else None
 
         try:
-            self.project = Project.objects.get(api_key=project_key)
+            self.project = Project.objects.get(api_key=project_key, is_active=True)
         except Project.DoesNotExist:
             self.stderr.write(self.style.ERROR('Invalid project key.'))
             return
@@ -272,7 +272,7 @@ class Command(BaseCommand):
                 message=f'Job failed: {str(e)}',
                 meta={'error_type': type(e).__name__}
             )
-            self.handle_failure(job, execution)
+            self.handle_failure(job, execution, error_type=type(e).__name__)
 
         finally:
             execution.ended_at = timezone.now()
@@ -311,7 +311,7 @@ class Command(BaseCommand):
         else:
             job.status = 'COMPLETED'
 
-    def handle_failure(self, job, execution):
+    def handle_failure(self, job, execution, error_type=None):
         # Get retry policy from queue or use job defaults
         queue_policy = job.queue.retry_policy or {}
         max_retries = queue_policy.get('max_retries', job.max_retries)
@@ -350,7 +350,7 @@ class Command(BaseCommand):
             DeadLetterQueue.objects.create(
                 job=job,
                 error_message=execution.error_message or 'Unknown error',
-                failure_reason=type(execution.error_message).__name__ if execution.error_message else 'Exception',
+                failure_reason=error_type or 'Exception',
                 retry_count=job.retry_count,
                 last_attempt_at=execution.ended_at or timezone.now()
             )

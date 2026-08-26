@@ -1,4 +1,5 @@
 import json
+import secrets
 import uuid
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
@@ -48,39 +49,45 @@ class Command(BaseCommand):
                 user.save()
                 self.stdout.write(f'User already exists: {email}')
 
-            # Create organization
+            # Create organization and link to user
             org, created = Organization.objects.get_or_create(
                 slug='demo-org',
                 defaults={
                     'name': 'Demo Organization',
+                    'user': user,
                 }
             )
             if created:
                 self.stdout.write('Created organization: Demo Organization')
 
-            # Create Project 1: API Project
+            # Ensure organization is linked to user
+            if org.user != user:
+                org.user = user
+                org.save(update_fields=['user'])
+
+            # Create Project 1: API Project (with secure API key)
             api_project, created = Project.objects.get_or_create(
                 organization=org,
                 name='API Project',
                 defaults={
-                    'api_key': 'demo-api-key-1',
+                    'api_key': secrets.token_urlsafe(32),
                     'is_active': True,
                 }
             )
             if created:
-                self.stdout.write(f'Created project: API Project (API Key: demo-api-key-1)')
+                self.stdout.write(f'Created project: API Project (API Key: {api_project.api_key})')
 
-            # Create Project 2: Batch Project
+            # Create Project 2: Batch Project (with secure API key)
             batch_project, created = Project.objects.get_or_create(
                 organization=org,
                 name='Batch Project',
                 defaults={
-                    'api_key': 'demo-api-key-2',
+                    'api_key': secrets.token_urlsafe(32),
                     'is_active': True,
                 }
             )
             if created:
-                self.stdout.write(f'Created project: Batch Project (API Key: demo-api-key-2)')
+                self.stdout.write(f'Created project: Batch Project (API Key: {batch_project.api_key})')
 
             # Create queues for API Project
             queues_data = [
@@ -275,9 +282,9 @@ class Command(BaseCommand):
             self.stdout.write(f'  Email: {email}')
             self.stdout.write(f'  Password: {password}')
             self.stdout.write('')
-            self.stdout.write('API Keys:')
+            self.stdout.write('API Keys (use these with run_worker --project_key=...):')
             self.stdout.write(f'  API Project: {api_project.api_key}')
             self.stdout.write(f'  Batch Project: {batch_project.api_key}')
             self.stdout.write('')
             self.stdout.write('Access the dashboard at: http://localhost:8000/')
-            self.stdout.write('Start worker with: python manage.py run_worker --project_key=demo-api-key-1 --concurrency=5')
+            self.stdout.write(f'Start worker with: python manage.py run_worker --project_key={api_project.api_key} --concurrency=5')

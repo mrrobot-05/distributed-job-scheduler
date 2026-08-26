@@ -44,11 +44,11 @@
 - Offload CPU work to subprocesses
 - Use `concurrent.futures.ProcessPoolExecutor` for CPU tasks (future)
 
-## 3. SKIP LOCKED for Atomic Claiming
+## 3. SKIP LOCKED and Advisory Locks for Concurrency
 
-### Decision: PostgreSQL `SELECT FOR UPDATE SKIP LOCKED`
+### Decision: PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` for job claiming, plus advisory locks for scheduled job coordination
 
-**Mechanism:**
+**Mechanism (Job Claiming):**
 ```sql
 SELECT * FROM jobs 
 WHERE status IN ('QUEUED', 'SCHEDULED') 
@@ -58,19 +58,21 @@ FOR UPDATE SKIP LOCKED
 LIMIT 1;
 ```
 
-**Why It Works:**
-- Locks only the claimed row
-- Other workers skip locked rows instantly
-- No blocking, no deadlocks
-- Guarantees exactly-once execution
+**Mechanism (Scheduled Job Coordination):**
+```python
+class DistributedLock:
+    def acquire(self):
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [self.lock_id])
+```
 
-**Alternative: Advisory Locks**
-- Pros: Application-level, more flexible
-- Cons: Manual cleanup on crash, more complex
+**Why Both:**
+- SKIP LOCKED: Ideal for job claiming — non-blocking, no deadlocks, workers skip locked rows
+- Advisory locks: Ideal for preventing duplicate scheduled job creation across workers — application-level coordination without row locking
+- Advisory locks are no-op on SQLite for development compatibility
 
-**Alternative: Redis SETNX**
-- Pros: Fast, simple
-- Cons: Requires Redis, separate system
+**Trade-offs:**
+- Advisory locks require manual release
+- SQLite doesn't support advisory locks (handled gracefully in code)
 
 ## 4. Worker Heartbeat vs Push Notifications
 
@@ -189,22 +191,30 @@ LIMIT 1;
 - Pros: DRY, standard patterns
 - Cons: Hidden logic, harder to customize
 
-## 11. Authentication: API Key vs JWT vs OAuth
+## 11. Authentication: API Key + Session Auth
 
-### Decision: Simple API Key (X-Project-Key Header)
+### Decision: Dual authentication — API Key for API, Session for Web UI
+
+**API Authentication:**
+- `X-Project-Key` header with `ProjectKeyAuthentication`
+- API keys generated via `secrets.token_urlsafe(32)` (43-character cryptographically secure strings)
+- Per-project isolation at query level
+
+**Web UI Authentication:**
+- Django session-based (`@login_required`)
+- Registration creates User → Organization → Project → Queue
+- Page views filter by `organization__user=request.user`
 
 **Rationale:**
-- Machine-to-machine primary use case
-- No token refresh complexity
-- Easy to rotate/revoke
-- Per-project isolation
+- Machine-to-machine: API key is simple, no token refresh
+- Web UI: Session auth integrates with Django's auth system
+- User identity via `Organization.user` FK
 
 **Trade-offs:**
-- No user-level identity
-- No built-in expiration
-- No standard token format
+- API keys have no built-in expiration
+- No OAuth/JWT complexity needed for current use case
 
-**Future:** Add JWT for user-facing dashboards
+**Future:** Add JWT for user-facing dashboards if needed
 
 ## 12. Frontend: Server-Rendered + Vanilla JS vs SPA
 
@@ -229,7 +239,7 @@ LIMIT 1;
 
 ## 13. Testing: LiveServerTestCase vs Unit Tests
 
-### Decision: Integration Tests with Live Server
+### Decision: Integration Tests with TransactionTestCase
 
 **Rationale:**
 - Tests real HTTP stack
@@ -241,6 +251,7 @@ LIMIT 1;
 - Slower than unit tests
 - Requires database setup
 - Flakier due to timing
+- Concurrent claiming tests skipped on SQLite
 
 **Complement:** Unit tests for pure logic (handlers, backoff calc)
 
@@ -261,15 +272,69 @@ LIMIT 1;
 
 **Future:** Extract worker as separate service if needed
 
-## 15. Configuration: Environment Variables
+## 15. Configuration: Environment Variables + Settings Package
 
-### Decision: `dj-database-url` + `os.getenv()`
+### Decision: `dj-database-url` + `os.getenv()` + settings package
 
 **Rationale:**
 - 12-factor app compliant
 - Works with Heroku/Railway/Render
 - Clear separation of config from code
 - Sensible defaults for development
+- Settings package auto-selects module via `DJANGO_SETTINGS_MODULE`
+
+**Implementation:**
+- `manage.py` defaults to `distributed_job_scheduler.settings`
+- `settings/__init__.py` reads env var and imports the appropriate module
+- Falls back to `settings.local` if not set
+
+## 16. Rate Limiting: Middleware-Based
+
+### Decision: Django middleware with cache-based counters
+
+**Implementation:**
+- `RateLimitMiddleware` in `scheduler/middleware.py`
+- Auth endpoints: Hardcoded 20 requests/minute/IP for `/login/` and `/register/`
+- API endpoints: Configurable via `RateLimitRule` model (project + endpoint)
+- Uses Django cache (`django.core.cache.cache`) for counters
+- Returns `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
+
+**Rationale:**
+- No additional infrastructure (uses existing Django cache)
+- Simple to understand and maintain
+- Configurable per-project per-endpoint
+- Auth rate limiting protects against brute force
+
+**Trade-offs:**
+- Cache-based: counters reset on cache flush
+- In-memory: not distributed across multiple web servers (unless using shared cache like Redis)
+
+**Alternative: Django ratelimit decorator**
+- Pros: Per-view control
+- Cons: Less centralized, harder to configure globally
+
+## 17. API Key Generation: UUID vs Cryptographic Random
+
+### Decision: `secrets.token_urlsafe(32)`
+
+**Implementation:**
+- 32 bytes of randomness → 43-character URL-safe base64 string
+- Generated during project creation (registration or web UI)
+- Stored as-is in `Project.api_key` field
+
+**Rationale:**
+- `secrets` module is designed for cryptographic randomness
+- URL-safe: can be used in headers without encoding issues
+- 43 characters: sufficient entropy (256 bits) against brute force
+- More standard than UUID format for API keys
+
+**Trade-offs:**
+- Not as recognizable as UUID format
+- No built-in structure (UUIDs have version/variant bits)
+
+**Alternative: UUID4**
+- Pros: Recognizable format, built-in structure
+- Cons: Lower entropy (122 random bits), hyphens cause issues in headers
 
 ## Summary Matrix
 
@@ -277,14 +342,16 @@ LIMIT 1;
 |----------|--------|-------------|------------|-------------|
 | Queue Backend | PostgreSQL | Redis/RabbitMQ | Low | Medium |
 | Concurrency | ThreadPool | AsyncIO/Process | Low | Medium |
-| Claiming | SKIP LOCKED | Advisory/Redis | Low | High |
+| Claiming | SKIP LOCKED + Advisory Locks | Advisory/Redis only | Low | High |
 | Scheduling | DB Polling | Celery Beat | Low | Medium |
 | Retry Policy | Hybrid | Per-Job/Per-Queue | Medium | High |
 | DLQ | Separate Table | Status Only | Low | High |
 | Batch Jobs | Individual + batch_id | Single Record | Medium | High |
 | Workflows | DAG | Linear | High | Medium |
 | API Style | APIView | ViewSet | Medium | N/A |
-| Auth | API Key | JWT/OAuth | Low | High |
+| Auth | API Key + Session | JWT/OAuth | Low | High |
 | Frontend | Templates + JS | SPA | Low | N/A |
 | Testing | Integration | Unit | Medium | N/A |
 | Architecture | Monolith | Microservices | Low | Medium |
+| Rate Limiting | Middleware + Cache | Per-view decorator | Low | Medium |
+| API Key Gen | secrets.token_urlsafe | UUID4 | Low | High |

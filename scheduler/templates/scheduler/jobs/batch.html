@@ -109,7 +109,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ batch.failed_jobs }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ batch.created_at|date:"M d, Y H:i" }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{% url 'batch_detail' batch.pk %}" class="text-blue-600 hover:text-blue-900">View</a>
+                            <a href="{% url 'api_batch_detail' batch.pk %}" class="text-blue-600 hover:text-blue-900">View</a>
                         </td>
                     </tr>
                     {% endfor %}

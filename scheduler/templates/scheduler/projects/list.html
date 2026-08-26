@@ -60,7 +60,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <a href="{% url 'project_detail' project.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
                             <a href="{% url 'project_update' project.pk %}" class="text-gray-600 hover:text-gray-900 mr-3">Edit</a>
-                            <a href="{% url 'queue_list' project.pk %}" class="text-green-600 hover:text-green-900">Queues</a>
+                            <a href="{% url 'queue_list_page' project.pk %}" class="text-green-600 hover:text-green-900">Queues</a>
                         </td>
                     </tr>
                     {% endfor %}

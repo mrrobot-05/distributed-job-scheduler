@@ -93,15 +93,15 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ queue.queued_count }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ queue.running_count }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{% url 'queue_detail' queue.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="{% url 'queue_detail_page' queue.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
                             <a href="{% url 'queue_update' queue.pk %}" class="text-gray-600 hover:text-gray-900 mr-3">Edit</a>
                             {% if queue.is_paused %}
-                                <form method="POST" action="{% url 'queue_resume' queue.pk %}" class="inline">
+                                <form method="POST" action="{% url 'queue_resume_page' queue.pk %}" class="inline">
                                     {% csrf_token %}
                                     <button type="submit" class="text-green-600 hover:text-green-900">Resume</button>
                                 </form>
                             {% else %}
-                                <form method="POST" action="{% url 'queue_pause' queue.pk %}" class="inline">
+                                <form method="POST" action="{% url 'queue_pause_page' queue.pk %}" class="inline">
                                     {% csrf_token %}
                                     <button type="submit" class="text-yellow-600 hover:text-yellow-900">Pause</button>
                                 </form>

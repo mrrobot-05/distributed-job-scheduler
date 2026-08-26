@@ -24,8 +24,7 @@ from drf_spectacular.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('scheduler.urls')),
-    path('', include('scheduler.urls')),  # Dashboard will be here
+    path('', include('scheduler.urls')),
 
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

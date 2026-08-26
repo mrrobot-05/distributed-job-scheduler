@@ -1,3 +1,4 @@
+import secrets
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy, reverse
@@ -31,13 +32,13 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('project_list')
 
     def form_valid(self, form):
-        # Create organization if user doesn't have one
         from scheduler.models import Organization
         org, created = Organization.objects.get_or_create(
             user=self.request.user,
             defaults={'name': f"{self.request.user.username}'s Organization", 'slug': f"{self.request.user.username}-org"}
         )
         form.instance.organization = org
+        form.instance.api_key = secrets.token_urlsafe(32)
         messages.success(self.request, 'Project created successfully!')
         return super().form_valid(form)
 
@@ -103,7 +104,7 @@ class QueueCreateView(LoginRequiredMixin, CreateView):
     fields = ['name', 'priority', 'concurrency_limit', 'is_paused', 'retry_policy']
 
     def get_success_url(self):
-        return reverse('queue_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return reverse('queue_list_page', kwargs={'project_pk': self.kwargs['project_pk']})
 
     def form_valid(self, form):
         project = get_object_or_404(Project, pk=self.kwargs['project_pk'], organization__user=self.request.user)
@@ -129,7 +130,13 @@ class QueueDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         queue = self.object
-        context['jobs'] = queue.jobs.select_related('project').order_by('-created_at')[:50]
+        queue = Queue.objects.filter(pk=queue.pk).annotate(
+            job_count=Count('jobs'),
+            queued_count=Count('jobs', filter=Q(jobs__status='QUEUED')),
+            running_count=Count('jobs', filter=Q(jobs__status='RUNNING')),
+        ).first()
+        context['queue'] = queue
+        context['jobs'] = queue.jobs.select_related('queue').order_by('-created_at')[:50]
         context['job_stats'] = queue.jobs.values('status').annotate(count=Count('id'))
         return context
 
@@ -143,7 +150,7 @@ class QueueUpdateView(LoginRequiredMixin, UpdateView):
         return Queue.objects.filter(project__organization__user=self.request.user)
 
     def get_success_url(self):
-        return reverse('queue_detail', kwargs={'pk': self.object.pk})
+        return reverse('queue_detail_page', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
         messages.success(self.request, 'Queue updated successfully!')
@@ -152,6 +159,7 @@ class QueueUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['is_create'] = False
+        context['project'] = self.object.project
         return context
 
 
@@ -161,7 +169,7 @@ class QueuePauseView(LoginRequiredMixin, View):
         queue.is_paused = True
         queue.save()
         messages.success(request, f'Queue "{queue.name}" paused.')
-        return redirect('queue_detail', pk=pk)
+        return redirect('queue_detail_page', pk=pk)
 
 
 class QueueResumeView(LoginRequiredMixin, View):
@@ -170,7 +178,7 @@ class QueueResumeView(LoginRequiredMixin, View):
         queue.is_paused = False
         queue.save()
         messages.success(request, f'Queue "{queue.name}" resumed.')
-        return redirect('queue_detail', pk=pk)
+        return redirect('queue_detail_page', pk=pk)
 
 
 class JobDetailPageView(LoginRequiredMixin, DetailView):

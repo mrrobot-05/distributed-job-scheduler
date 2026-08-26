@@ -4,9 +4,10 @@
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ PROJECT : "contains"
+    USER o|--o{ ORGANIZATION : "owns"
+    ORGANIZATION o|--o{ PROJECT : "contains"
     PROJECT ||--o{ QUEUE : "owns"
-    PROJECT ||--o{ WORKER : "registers"
+    PROJECT o|--o{ WORKER : "registers"
     PROJECT ||--o{ BATCH_JOB : "submits"
     PROJECT ||--o{ RATE_LIMIT_RULE : "configures"
     QUEUE ||--o{ JOB : "contains"
@@ -14,12 +15,13 @@ erDiagram
     JOB ||--o{ JOB_EXECUTION : "logs"
     JOB_EXECUTION ||--o{ JOB_LOG : "details"
     JOB ||--o| DEAD_LETTER_QUEUE : "fails permanently"
-    WORKER ||--o{ JOB_EXECUTION : "executes"
+    WORKER o|--o{ JOB_EXECUTION : "executes"
     JOB }o--o{ JOB : "depends_on (workflow)"
     BATCH_JOB ||--o{ JOB : "groups"
 
     ORGANIZATION {
         uuid id PK
+        uuid user_id FK
         string name
         string slug UK
         datetime created_at
@@ -165,7 +167,7 @@ erDiagram
 
 | Table | Purpose | Key Relationships |
 |-------|---------|-------------------|
-| `organization` | Top-level tenant container | Parent of Project |
+| `organization` | Top-level tenant container | Parent of Project, linked to User |
 | `project` | API key isolation boundary | Owns Queues, Workers, Batches |
 | `queue` | Job ordering & concurrency control | Contains Jobs, ScheduledJobs |
 | `job` | Unit of work | Executions, Logs, DLQ, Dependencies |
@@ -208,6 +210,14 @@ erDiagram
 | Due scheduled jobs | `ScheduledJob(is_active, next_run_at)` |
 | Workflow deps | `WorkflowDependency(depends_on)` |
 
+## Unique Constraints
+
+| Table | Fields | Constraint |
+|-------|--------|------------|
+| Queue | `(project, name)` | `unique_together` — queue names unique per project |
+| WorkflowDependency | `(job, depends_on)` | `unique_together` — no duplicate dependency edges |
+| RateLimitRule | `(project, endpoint)` | `unique_together` — one rule per endpoint per project |
+
 ## Normalization Notes
 
 - **3NF Compliant**: No transitive dependencies
@@ -221,7 +231,8 @@ erDiagram
 2. `0002_worker_project` - Add project FK to Worker (nullable)
 3. `0003_alter_worker_project` - Make Worker.project NOT NULL
 4. `0004_alter_worker_project` - Revert to nullable Worker.project
-5. `0005_batchjob_deadletterqueue_joblog_organization_and_more` - Extended models
+5. `0005_batchjob_deadletterqueue_joblog_organization_and_more` - Extended models (BatchJob, DeadLetterQueue, JobLog, Organization, RateLimitRule, ScheduledJob, WorkflowDependency)
+6. `0006_organization_user_alter_worker_last_heartbeat` - Add Organization.user FK, alter Worker.last_heartbeat default
 
 ## Data Retention
 
@@ -229,7 +240,7 @@ erDiagram
 |-------|------------------|
 | Job | Indefinite (archival by status) |
 | JobExecution | Indefinite (metrics) |
-| JobLog | 30 days (configurable) |
+| JobLog | Indefinite (no automated cleanup implemented) |
 | Worker | Indefinite (history) |
 | DeadLetterQueue | Until manually resolved |
 | ScheduledJob | Indefinite |

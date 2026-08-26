@@ -9,23 +9,21 @@ from .serializers import (
     JobLogSerializer, DeadLetterQueueSerializer, ScheduledJobSerializer,
     WorkflowDependencySerializer, JobExecutionSerializer
 )
-from .authentication import ProjectKeyAuthentication
+from .authentication import ProjectKeyAuthentication, IsProjectAuthenticated
 from .pagination import JobPagination
 
-import json
 from functools import wraps
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, render
+from django.contrib.auth.decorators import login_required
 from .models import (
     Project, Queue, Job, JobExecution, Worker,
     BatchJob, JobLog, DeadLetterQueue, ScheduledJob,
-    WorkflowDependency, RateLimitRule
+    WorkflowDependency
 )
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-import uuid
 
 
 def api_key_required(f):
@@ -36,7 +34,7 @@ def api_key_required(f):
             return JsonResponse({'error': 'Missing X-Project-Key header'}, status=401)
 
         try:
-            project = Project.objects.get(api_key=api_key)
+            project = Project.objects.get(api_key=api_key, is_active=True)
             request.project = project
         except Project.DoesNotExist:
             return JsonResponse({'error': 'Invalid API Key'}, status=401)
@@ -45,176 +43,6 @@ def api_key_required(f):
     return decorated_function
 
 
-@csrf_exempt
-@api_key_required
-def manage_queues(request):
-    if request.method == 'GET':
-        queues = Queue.objects.filter(project=request.project)
-        data = [{
-            'id': q.id,
-            'name': q.name,
-            'priority': q.priority,
-            'concurrency_limit': q.concurrency_limit,
-            'is_paused': q.is_paused,
-            'retry_policy': q.retry_policy,
-        } for q in queues]
-        return JsonResponse({'queues': data})
-
-    elif request.method == 'POST':
-        try:
-            body = json.loads(request.body)
-            queue = Queue.objects.create(
-                project=request.project,
-                name=body['name'],
-                priority=body.get('priority', 1),
-                concurrency_limit=body.get('concurrency_limit', 5),
-                retry_policy=body.get('retry_policy', {})
-            )
-            return JsonResponse({'id': queue.id, 'status': 'created'}, status=201)
-        except (KeyError, json.JSONDecodeError) as e:
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@csrf_exempt
-@api_key_required
-def queue_detail(request, queue_id):
-    queue = get_object_or_404(Queue, id=queue_id, project=request.project)
-
-    if request.method == 'GET':
-        return JsonResponse({
-            'id': queue.id,
-            'name': queue.name,
-            'priority': queue.priority,
-            'concurrency_limit': queue.concurrency_limit,
-            'is_paused': queue.is_paused,
-            'retry_policy': queue.retry_policy,
-            'created_at': queue.created_at.isoformat(),
-            'updated_at': queue.updated_at.isoformat(),
-        })
-
-    elif request.method == 'PATCH':
-        try:
-            body = json.loads(request.body)
-            if 'priority' in body:
-                queue.priority = body['priority']
-            if 'concurrency_limit' in body:
-                queue.concurrency_limit = body['concurrency_limit']
-            if 'is_paused' in body:
-                queue.is_paused = body['is_paused']
-            if 'retry_policy' in body:
-                queue.retry_policy = body['retry_policy']
-            queue.save()
-            return JsonResponse({'status': 'updated'})
-        except (KeyError, json.JSONDecodeError):
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-
-    elif request.method == 'DELETE':
-        queue.delete()
-        return JsonResponse({'status': 'deleted'})
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@csrf_exempt
-@api_key_required
-def queue_pause(request, queue_id):
-    queue = get_object_or_404(Queue, id=queue_id, project=request.project)
-    queue.is_paused = True
-    queue.save(update_fields=['is_paused', 'updated_at'])
-    return JsonResponse({'status': 'paused'})
-
-
-@csrf_exempt
-@api_key_required
-def queue_resume(request, queue_id):
-    queue = get_object_or_404(Queue, id=queue_id, project=request.project)
-    queue.is_paused = False
-    queue.save(update_fields=['is_paused', 'updated_at'])
-    return JsonResponse({'status': 'resumed'})
-
-
-@csrf_exempt
-@api_key_required
-def queue_stats(request, queue_id):
-    queue = get_object_or_404(Queue, id=queue_id, project=request.project)
-
-    stats = Job.objects.filter(queue=queue).values('status').annotate(count=Count('id'))
-    status_counts = {s['status']: s['count'] for s in stats}
-
-    return JsonResponse({
-        'queue': queue.name,
-        'total_jobs': sum(status_counts.values()),
-        'by_status': status_counts,
-        'concurrency_limit': queue.concurrency_limit,
-        'is_paused': queue.is_paused,
-    })
-
-
-@csrf_exempt
-@api_key_required
-def submit_job(request):
-    if request.method == 'POST':
-        try:
-            body = json.loads(request.body)
-            queue_name = body.get('queue', 'default')
-            queue = get_object_or_404(Queue, project=request.project, name=queue_name)
-
-            scheduled_at = body.get('scheduled_at')
-            if scheduled_at:
-                scheduled_at = timezone.datetime.fromisoformat(scheduled_at)
-                if timezone.is_naive(scheduled_at):
-                    scheduled_at = timezone.make_aware(
-                        scheduled_at,
-                        timezone.get_current_timezone(),
-                    )
-            else:
-                scheduled_at = timezone.now()
-
-            job = Job.objects.create(
-                queue=queue,
-                name=body['name'],
-                payload=body.get('payload', {}),
-                status='QUEUED',
-                unique_key=body.get('unique_key'),
-                scheduled_at=scheduled_at,
-                cron_expression=body.get('cron_expression'),
-                max_retries=body.get('max_retries', 3),
-                backoff_strategy=body.get('backoff_strategy', 'FIXED'),
-                backoff_delay=body.get('backoff_delay', 60),
-                batch_id=body.get('batch_id'),
-                timeout_seconds=body.get('timeout_seconds', 300)
-            )
-            return JsonResponse({'id': job.id, 'status': 'queued'}, status=201)
-        except (KeyError, json.JSONDecodeError) as e:
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-        except IntegrityError:
-            return JsonResponse({'error': 'A job with this unique_key already exists'}, status=409,)
-
-
-@api_key_required
-def list_jobs(request):
-    jobs = Job.objects.filter(queue__project=request.project).order_by('-created_at')
-    job_status = request.GET.get('status')
-    if job_status:
-        jobs = jobs.filter(status=job_status)
-    queue_name = request.GET.get('queue')
-    if queue_name:
-        jobs = jobs.filter(queue__name=queue_name)
-
-    data = [{
-        'id': str(j.id),
-        'name': j.name,
-        'status': j.status,
-        'scheduled_at': j.scheduled_at.isoformat(),
-        'created_at': j.created_at.isoformat(),
-        'queue': j.queue.name
-    } for j in jobs[:50]]
-
-    return JsonResponse({'jobs': data})
-
-
-@csrf_exempt
 @api_key_required
 def job_retry(request, job_id):
     if request.method != 'POST':
@@ -235,310 +63,19 @@ def job_retry(request, job_id):
     return JsonResponse({'id': job.id, 'status': 'queued'})
 
 
-@csrf_exempt
-@api_key_required
-def job_logs(request, job_id):
-    job = get_object_or_404(Job, id=job_id, queue__project=request.project)
-
-    executions = job.executions.all().order_by('-started_at')
-    execution_id = request.GET.get('execution_id')
-    if execution_id:
-        executions = executions.filter(id=execution_id)
-
-    logs = JobLog.objects.filter(execution__in=executions).order_by('timestamp')
-
-    data = [{
-        'id': log.id,
-        'execution_id': log.execution.id,
-        'level': log.level,
-        'message': log.message,
-        'timestamp': log.timestamp.isoformat(),
-        'meta': log.meta,
-    } for log in logs]
-
-    return JsonResponse({'logs': data})
-
-
-@csrf_exempt
-@api_key_required
-def submit_batch(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-    try:
-        body = json.loads(request.body)
-        queue_name = body.get('queue', 'default')
-        queue = get_object_or_404(Queue, project=request.project, name=queue_name)
-
-        batch = BatchJob.objects.create(
-            project=request.project,
-            name=body['name'],
-            total_jobs=len(body['jobs']),
-            status='PENDING'
-        )
-
-        batch_id = batch.id
-        jobs_to_create = []
-        for job_data in body['jobs']:
-            scheduled_at = job_data.get('scheduled_at')
-            if scheduled_at:
-                scheduled_at = timezone.datetime.fromisoformat(scheduled_at)
-                if timezone.is_naive(scheduled_at):
-                    scheduled_at = timezone.make_aware(scheduled_at)
-            else:
-                scheduled_at = timezone.now()
-
-            jobs_to_create.append(Job(
-                queue=queue,
-                name=job_data['name'],
-                payload=job_data.get('payload', {}),
-                status='QUEUED',
-                unique_key=job_data.get('unique_key'),
-                scheduled_at=scheduled_at,
-                cron_expression=job_data.get('cron_expression'),
-                max_retries=job_data.get('max_retries', 3),
-                backoff_strategy=job_data.get('backoff_strategy', 'FIXED'),
-                backoff_delay=job_data.get('backoff_delay', 60),
-                batch_id=batch_id,
-                timeout_seconds=job_data.get('timeout_seconds', 300)
-            ))
-
-        Job.objects.bulk_create(jobs_to_create)
-        batch.status = 'PARTIAL'
-        batch.save()
-
-        return JsonResponse({
-            'batch_id': str(batch.id),
-            'name': batch.name,
-            'total_jobs': batch.total_jobs,
-            'status': 'created'
-        }, status=201)
-
-    except (KeyError, json.JSONDecodeError) as e:
-        return JsonResponse({'error': 'Invalid request body'}, status=400)
-
-
-@api_key_required
-def batch_detail(request, batch_id):
-    batch = get_object_or_404(BatchJob, id=batch_id, project=request.project)
-
-    jobs = batch.jobs.all() if hasattr(batch, 'jobs') else Job.objects.filter(batch_id=batch_id)
-    job_data = [{
-        'id': str(j.id),
-        'name': j.name,
-        'status': j.status,
-    } for j in jobs]
-
-    return JsonResponse({
-        'id': str(batch.id),
-        'name': batch.name,
-        'total_jobs': batch.total_jobs,
-        'completed_jobs': batch.completed_jobs,
-        'failed_jobs': batch.failed_jobs,
-        'status': batch.status,
-        'jobs': job_data,
-        'created_at': batch.created_at.isoformat(),
-        'completed_at': batch.completed_at.isoformat() if batch.completed_at else None,
-    })
-
-
-@csrf_exempt
-@api_key_required
-def dlq_list(request):
-    if request.method == 'GET':
-        dlq_entries = DeadLetterQueue.objects.filter(
-            job__queue__project=request.project
-        ).select_related('job', 'job__queue').order_by('-created_at')
-
-        data = [{
-            'id': entry.id,
-            'job_id': str(entry.job.id),
-            'job_name': entry.job.name,
-            'queue': entry.job.queue.name,
-            'error_message': entry.error_message,
-            'failure_reason': entry.failure_reason,
-            'retry_count': entry.retry_count,
-            'last_attempt_at': entry.last_attempt_at.isoformat(),
-            'created_at': entry.created_at.isoformat(),
-        } for entry in dlq_entries]
-
-        return JsonResponse({'dlq': data})
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@csrf_exempt
-@api_key_required
-def dlq_retry(request, dlq_id):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-    dlq_entry = get_object_or_404(DeadLetterQueue, id=dlq_id, job__queue__project=request.project)
-    job = dlq_entry.job
-
-    job.status = 'QUEUED'
-    job.retry_count = 0
-    job.scheduled_at = timezone.now()
-    job.save()
-
-    dlq_entry.resolved_at = timezone.now()
-    dlq_entry.resolved_by = 'api'
-    dlq_entry.resolution_notes = 'Retried via API'
-    dlq_entry.save()
-
-    return JsonResponse({'id': str(job.id), 'status': 'queued'})
-
-
-@csrf_exempt
-@api_key_required
-def scheduled_jobs(request):
-    if request.method == 'GET':
-        scheduled = ScheduledJob.objects.filter(
-            queue__project=request.project
-        ).select_related('queue').order_by('next_run_at')
-
-        data = [{
-            'id': s.id,
-            'name': s.name,
-            'queue': s.queue.name,
-            'cron_expression': s.cron_expression,
-            'next_run_at': s.next_run_at.isoformat(),
-            'is_active': s.is_active,
-        } for s in scheduled]
-
-        return JsonResponse({'scheduled_jobs': data})
-
-    elif request.method == 'POST':
-        try:
-            body = json.loads(request.body)
-            queue = get_object_or_404(Queue, project=request.project, name=body['queue'])
-
-            from croniter import croniter
-            iter = croniter(body['cron_expression'], timezone.now())
-            next_run = iter.get_next(timezone.datetime)
-
-            scheduled = ScheduledJob.objects.create(
-                queue=queue,
-                name=body['name'],
-                payload=body.get('payload', {}),
-                cron_expression=body['cron_expression'],
-                next_run_at=next_run,
-                max_retries=body.get('max_retries', 3),
-                backoff_strategy=body.get('backoff_strategy', 'FIXED'),
-                backoff_delay=body.get('backoff_delay', 60),
-            )
-            return JsonResponse({'id': scheduled.id, 'status': 'created'}, status=201)
-        except (KeyError, json.JSONDecodeError) as e:
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@csrf_exempt
-@api_key_required
-def scheduled_job_detail(request, scheduled_id):
-    scheduled = get_object_or_404(ScheduledJob, id=scheduled_id, queue__project=request.project)
-
-    if request.method == 'GET':
-        return JsonResponse({
-            'id': scheduled.id,
-            'name': scheduled.name,
-            'queue': scheduled.queue.name,
-            'payload': scheduled.payload,
-            'cron_expression': scheduled.cron_expression,
-            'next_run_at': scheduled.next_run_at.isoformat(),
-            'max_retries': scheduled.max_retries,
-            'backoff_strategy': scheduled.backoff_strategy,
-            'backoff_delay': scheduled.backoff_delay,
-            'is_active': scheduled.is_active,
-            'created_at': scheduled.created_at.isoformat(),
-            'updated_at': scheduled.updated_at.isoformat(),
-        })
-
-    elif request.method == 'PATCH':
-        try:
-            body = json.loads(request.body)
-            if 'is_active' in body:
-                scheduled.is_active = body['is_active']
-            if 'max_retries' in body:
-                scheduled.max_retries = body['max_retries']
-            if 'backoff_strategy' in body:
-                scheduled.backoff_strategy = body['backoff_strategy']
-            if 'backoff_delay' in body:
-                scheduled.backoff_delay = body['backoff_delay']
-            scheduled.save()
-            return JsonResponse({'status': 'updated'})
-        except (KeyError, json.JSONDecodeError):
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-
-    elif request.method == 'DELETE':
-        scheduled.delete()
-        return JsonResponse({'status': 'deleted'})
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@csrf_exempt
-@api_key_required
-def workflow_dependencies(request):
-    if request.method == 'GET':
-        deps = WorkflowDependency.objects.filter(
-            job__queue__project=request.project
-        ).select_related('job', 'depends_on', 'job__queue', 'depends_on__queue')
-
-        data = [{
-            'id': d.id,
-            'job_id': str(d.job.id),
-            'job_name': d.job.name,
-            'job_queue': d.job.queue.name,
-            'depends_on_id': str(d.depends_on.id),
-            'depends_on_name': d.depends_on.name,
-            'depends_on_queue': d.depends_on.queue.name,
-        } for d in deps]
-
-        return JsonResponse({'dependencies': data})
-
-    elif request.method == 'POST':
-        try:
-            body = json.loads(request.body)
-            job = get_object_or_404(Job, id=body['job_id'], queue__project=request.project)
-            depends_on = get_object_or_404(Job, id=body['depends_on_id'], queue__project=request.project)
-
-            if job == depends_on:
-                return JsonResponse({'error': 'Job cannot depend on itself'}, status=400)
-
-            dep, created = WorkflowDependency.objects.get_or_create(
-                job=job,
-                depends_on=depends_on
-            )
-            return JsonResponse({'id': dep.id, 'status': 'created' if created else 'exists'}, status=201)
-        except (KeyError, json.JSONDecodeError) as e:
-            return JsonResponse({'error': 'Invalid request body'}, status=400)
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@api_key_required
-def workflow_dependency_detail(request, dep_id):
-    dep = get_object_or_404(WorkflowDependency, id=dep_id, job__queue__project=request.project)
-
-    if request.method == 'DELETE':
-        dep.delete()
-        return JsonResponse({'status': 'deleted'})
-
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
+@login_required
 def dashboard(request):
-    return render(request, 'scheduler/dashboard.html', {'api_key': getattr(request, 'project', None) and request.project.api_key})
+    return render(request, 'scheduler/dashboard.html')
 
 
+@login_required
 def job_explorer(request):
-    return render(request, 'scheduler/job_explorer.html', {'api_key': getattr(request, 'project', None) and request.project.api_key})
+    return render(request, 'scheduler/job_explorer.html')
 
 
 class StatsView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -598,6 +135,7 @@ class StatsView(APIView):
 
 class SubmitJobView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request):
         serializer = JobSubmitSerializer(data=request.data)
@@ -663,6 +201,7 @@ class SubmitJobView(APIView):
 
 class JobListView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -694,6 +233,7 @@ class JobListView(APIView):
 
 class JobDetailView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, job_id):
         project = request.auth
@@ -753,6 +293,7 @@ class JobDetailView(APIView):
 
 class JobLogsView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, job_id):
         project = request.auth
@@ -775,6 +316,7 @@ class JobLogsView(APIView):
 
 class QueueListView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -796,6 +338,7 @@ class QueueListView(APIView):
 
 class QueueDetailView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, queue_id):
         project = request.auth
@@ -824,6 +367,7 @@ class QueueDetailView(APIView):
 
 class QueuePauseView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request, queue_id):
         project = request.auth
@@ -835,6 +379,7 @@ class QueuePauseView(APIView):
 
 class QueueResumeView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request, queue_id):
         project = request.auth
@@ -846,6 +391,7 @@ class QueueResumeView(APIView):
 
 class QueueStatsView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, queue_id):
         project = request.auth
@@ -865,6 +411,7 @@ class QueueStatsView(APIView):
 
 class WorkerRegisterView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request):
         serializer = WorkerRegistrationSerializer(data=request.data)
@@ -903,6 +450,7 @@ class WorkerRegisterView(APIView):
 
 class WorkerHeartbeatView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request):
         worker_id = request.data.get("worker_id")
@@ -945,6 +493,7 @@ class WorkerHeartbeatView(APIView):
 
 class WorkerListView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -955,6 +504,7 @@ class WorkerListView(APIView):
 
 class BatchJobSubmitView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request):
         serializer = BatchJobSubmitSerializer(data=request.data)
@@ -1012,6 +562,7 @@ class BatchJobSubmitView(APIView):
 
 class BatchJobDetailView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, batch_id):
         project = request.auth
@@ -1028,6 +579,7 @@ class BatchJobDetailView(APIView):
 
 class DeadLetterQueueView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -1044,6 +596,7 @@ class DeadLetterQueueView(APIView):
 
 class DeadLetterQueueRetryView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def post(self, request, dlq_id):
         project = request.auth
@@ -1068,6 +621,7 @@ class DeadLetterQueueRetryView(APIView):
 
 class ScheduledJobListView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -1079,7 +633,7 @@ class ScheduledJobListView(APIView):
 
     def post(self, request):
         project = request.auth
-        serializer = ScheduledJobSerializer(data=request.data)
+        serializer = ScheduledJobSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(
                 {"error": "Validation failed", "details": serializer.errors},
@@ -1108,6 +662,7 @@ class ScheduledJobListView(APIView):
 
 class ScheduledJobDetailView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request, scheduled_id):
         project = request.auth
@@ -1118,7 +673,7 @@ class ScheduledJobDetailView(APIView):
     def patch(self, request, scheduled_id):
         project = request.auth
         scheduled = get_object_or_404(ScheduledJob, id=scheduled_id, queue__project=project)
-        serializer = ScheduledJobSerializer(scheduled, data=request.data, partial=True)
+        serializer = ScheduledJobSerializer(scheduled, data=request.data, partial=True, context={'request': request})
         if not serializer.is_valid():
             return Response(
                 {"error": "Validation failed", "details": serializer.errors},
@@ -1136,6 +691,7 @@ class ScheduledJobDetailView(APIView):
 
 class WorkflowDependencyListView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def get(self, request):
         project = request.auth
@@ -1147,7 +703,7 @@ class WorkflowDependencyListView(APIView):
 
     def post(self, request):
         project = request.auth
-        serializer = WorkflowDependencySerializer(data=request.data)
+        serializer = WorkflowDependencySerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(
                 {"error": "Validation failed", "details": serializer.errors},
@@ -1172,6 +728,7 @@ class WorkflowDependencyListView(APIView):
 
 class WorkflowDependencyDetailView(APIView):
     authentication_classes = [ProjectKeyAuthentication]
+    permission_classes = [IsProjectAuthenticated]
 
     def delete(self, request, dep_id):
         project = request.auth

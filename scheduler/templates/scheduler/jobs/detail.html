@@ -93,18 +93,18 @@
 <!-- Job Actions -->
 <div class="mb-6 flex flex-wrap gap-3">
     {% if job.status == 'FAILED' or job.status == 'DLQ' %}
-        <form method="POST" action="{% url 'job_retry' job.pk %}" class="inline">
+        <form method="POST" action="{% url 'job_retry_page' job.pk %}" class="inline">
             {% csrf_token %}
             <button type="submit" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Retry Job</button>
         </form>
     {% endif %}
     {% if job.status in 'QUEUED,SCHEDULED,CLAIMED' %}
-        <form method="POST" action="{% url 'job_cancel' job.pk %}" class="inline" onsubmit="return confirm('Cancel this job?')">
+        <form method="POST" action="{% url 'job_cancel_page' job.pk %}" class="inline" onsubmit="return confirm('Cancel this job?')">
             {% csrf_token %}
             <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Cancel Job</button>
         </form>
     {% endif %}
-    <a href="{% url 'job_logs' job.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">View Logs</a>
+    <a href="{% url 'api_job_logs' job.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">View Logs</a>
 </div>
 
 <!-- Executions -->
@@ -145,7 +145,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ exec.duration_ms|default:"-" }}ms</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{{ exec.error_message|default:"-" }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <a href="{% url 'job_logs' job.pk %}?execution_id={{ exec.pk }}" class="text-blue-600 hover:text-blue-900 text-sm">View Logs</a>
+                            <a href="{% url 'api_job_logs' job.pk %}?execution_id={{ exec.pk }}" class="text-blue-600 hover:text-blue-900 text-sm">View Logs</a>
                         </td>
                     </tr>
                     {% endfor %}

@@ -76,7 +76,7 @@
             </div>
 
             <div class="mt-6 flex justify-end space-x-3">
-                <a href="{% url 'queue_list' project.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+                <a href="{% url 'queue_list_page' project.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
                 <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     {% if is_create %}Create Queue{% else %}Save Changes{% endif %}
                 </button>

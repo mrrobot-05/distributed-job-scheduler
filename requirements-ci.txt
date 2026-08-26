@@ -1,0 +1,13 @@
+# CI/CD tool dependencies (pinned versions)
+# These are NOT runtime dependencies - they are only used in CI
+# Install with: pip install -r requirements-ci.txt
+
+# Linting
+ruff==0.11.13
+
+# Type checking
+mypy==2.3.1
+django-stubs==5.2.9
+
+# Security scanning
+bandit==1.9.4

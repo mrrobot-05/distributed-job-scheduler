@@ -10,7 +10,7 @@
     </div>
     <div class="flex space-x-3">
         <a href="{% url 'queue_update' queue.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Edit</a>
-        <a href="{% url 'queue_list' queue.project.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Back to Queues</a>
+        <a href="{% url 'queue_list_page' queue.project.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Back to Queues</a>
     </div>
 </div>
 
@@ -49,18 +49,18 @@
 <!-- Queue Actions -->
 <div class="mb-6 flex flex-wrap gap-3">
     {% if queue.is_paused %}
-        <form method="POST" action="{% url 'queue_resume' queue.pk %}" class="inline">
+        <form method="POST" action="{% url 'queue_resume_page' queue.pk %}" class="inline">
             {% csrf_token %}
             <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Resume Queue</button>
         </form>
     {% else %}
-        <form method="POST" action="{% url 'queue_pause' queue.pk %}" class="inline">
+        <form method="POST" action="{% url 'queue_pause_page' queue.pk %}" class="inline">
             {% csrf_token %}
             <button type="submit" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Pause Queue</button>
         </form>
     {% endif %}
     <a href="{% url 'queue_update' queue.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Edit Settings</a>
-    <a href="{% url 'queue_stats' queue.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" target="_blank">View Stats</a>
+    <a href="{% url 'api_queue_stats' queue.pk %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" target="_blank">View Stats</a>
 </div>
 
 <!-- Jobs Table -->

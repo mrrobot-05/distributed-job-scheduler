@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     Project, Queue, Job, Worker, JobExecution,
     Organization, JobLog, BatchJob, WorkflowDependency,
@@ -7,17 +8,24 @@ from .models import (
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'created_at')
+    list_display = ('name', 'slug', 'user', 'created_at')
     search_fields = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'organization', 'api_key', 'is_active', 'created_at')
+    list_display = ('name', 'organization', 'masked_api_key', 'is_active', 'created_at')
     list_filter = ('organization', 'is_active')
     search_fields = ('name', 'api_key')
     readonly_fields = ('api_key',)
+
+    def masked_api_key(self, obj):
+        key = obj.api_key
+        if key and len(key) > 8:
+            return format_html('{}...{}', key[:4], key[-4:])
+        return key
+    masked_api_key.short_description = 'API Key'
 
 
 @admin.register(Queue)
