@@ -1,6 +1,9 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Job, Worker, Queue, Project, BatchJob, JobLog, DeadLetterQueue, ScheduledJob, WorkflowDependency, JobExecution
+from .models import (
+    Job, Worker, Queue, BatchJob, JobLog, DeadLetterQueue,
+    ScheduledJob, WorkflowDependency, JobExecution,
+)
 
 
 class JobSubmitSerializer(serializers.Serializer):
@@ -285,7 +288,7 @@ class ScheduledJobSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'auth'):
             project = request.auth
-            self.fields['queue'].queryset = Queue.objects.filter(project=project)
+            self.fields['queue'].queryset = Queue.objects.filter(project=project)  # type: ignore[attr-defined]  # DRF PrimaryKeyRelatedField has queryset at runtime
 
 
 class WorkflowDependencySerializer(serializers.ModelSerializer):
@@ -310,5 +313,5 @@ class WorkflowDependencySerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'auth'):
             project = request.auth
-            self.fields['job'].queryset = Job.objects.filter(queue__project=project)
-            self.fields['depends_on'].queryset = Job.objects.filter(queue__project=project)
+            self.fields['job'].queryset = Job.objects.filter(queue__project=project)  # type: ignore[attr-defined]  # DRF PrimaryKeyRelatedField has queryset at runtime
+            self.fields['depends_on'].queryset = Job.objects.filter(queue__project=project)  # type: ignore[attr-defined]  # DRF PrimaryKeyRelatedField has queryset at runtime

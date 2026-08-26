@@ -1,5 +1,5 @@
-import json
 import time
+from datetime import timedelta
 from django.test import TransactionTestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -7,7 +7,6 @@ from scheduler.models import (
     Project, Queue, Job, Worker, JobExecution,
     Organization, BatchJob, DeadLetterQueue, ScheduledJob,
 )
-from django.core.management import call_command
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -189,7 +188,7 @@ class SchedulerIntegrationTest(BaseSchedulerTest):
             concurrency_limit=1, status="ACTIVE",
         )
 
-        old_heartbeat = timezone.now() - timezone.timedelta(minutes=10)
+        old_heartbeat = timezone.now() - timedelta(minutes=10)
         Worker.objects.filter(id=dead_worker.id).update(last_heartbeat=old_heartbeat)
         dead_worker.refresh_from_db()
 
@@ -299,7 +298,6 @@ class SchedulerConcurrencyTest(BaseSchedulerTest):
 
     def test_concurrent_claiming_skip_locked(self):
         import concurrent.futures
-        from django.db import connection
         from django.conf import settings
         from scheduler.management.commands.run_worker import Command
 
@@ -307,7 +305,7 @@ class SchedulerConcurrencyTest(BaseSchedulerTest):
         if 'sqlite' in db_engine:
             self.skipTest("SQLite doesn't support concurrent writes")
 
-        jobs = [
+        _jobs = [
             self._create_job(name=f'test_job_{i}', payload={'index': i})
             for i in range(10)
         ]
@@ -384,13 +382,14 @@ class SchedulerScheduledJobTest(BaseSchedulerTest):
         jobs = Job.objects.filter(name='scheduled_test_job', queue=self.queue)
         self.assertEqual(jobs.count(), 1)
         created_job = jobs.first()
+        assert created_job is not None  # guaranteed: Job was just created by process_scheduled_jobs
         self.assertEqual(created_job.payload, {'test': 'data'})
         self.assertEqual(created_job.cron_expression, '* * * * *')
         self.assertEqual(created_job.status, 'QUEUED')
 
     def test_scheduled_job_not_created_when_not_due(self):
         worker_cmd = self._create_worker()
-        future_time = timezone.now() + timezone.timedelta(hours=1)
+        future_time = timezone.now() + timedelta(hours=1)
         ScheduledJob.objects.create(
             queue=self.queue, name='future_scheduled_job',
             payload={'test': 'data'}, cron_expression='* * * * *',
@@ -506,14 +505,14 @@ class SchedulerDLQTest(BaseSchedulerTest):
 class SchedulerTimezoneTest(BaseSchedulerTest):
 
     def test_scheduled_at_timezone_aware_conversion(self):
-        naive_dt = (timezone.now() + timezone.timedelta(hours=1)).replace(tzinfo=None)
+        naive_dt = (timezone.now() + timedelta(hours=1)).replace(tzinfo=None)
         response = self._submit_job(scheduled_at=naive_dt.isoformat())
         self.assertEqual(response.status_code, 201)
         job = Job.objects.get(id=response.json()['id'])
         self.assertIsNotNone(job.scheduled_at.tzinfo)
 
     def test_scheduled_at_utc_timezone(self):
-        utc_dt = timezone.now() + timezone.timedelta(hours=1)
+        utc_dt = timezone.now() + timedelta(hours=1)
         response = self._submit_job(scheduled_at=utc_dt.isoformat())
         self.assertEqual(response.status_code, 201)
         job = Job.objects.get(id=response.json()['id'])
@@ -690,8 +689,6 @@ class APIKeyGenerationTest(TransactionTestCase):
 
     def test_registration_generates_token_urlsafe_key(self):
         from scheduler.auth_views import RegisterForm
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
 
         form_data = {
             'username': 'reg_user_1',
@@ -778,7 +775,6 @@ class SerializerProjectScopingTest(TransactionTestCase):
         from rest_framework.test import APIRequestFactory
         factory = APIRequestFactory()
         request = factory.get('/')
-        from scheduler.authentication import ProjectKeyAuthentication
         project = Project.objects.get(api_key=key)
         request.auth = project
         return request
@@ -959,11 +955,11 @@ class BatchJobSemanticsTest(BaseSchedulerTest):
             queue=self.queue, name='test_job', status='QUEUED',
             scheduled_at=timezone.now(), batch_id=batch.id,
         )
-        j2 = Job.objects.create(
+        _j2 = Job.objects.create(
             queue=self.queue, name='test_job', status='QUEUED',
             scheduled_at=timezone.now(), batch_id=batch.id,
         )
-        j3 = Job.objects.create(
+        _j3 = Job.objects.create(
             queue=self.queue, name='test_job', status='QUEUED',
             scheduled_at=timezone.now(), batch_id=batch.id,
         )
@@ -1008,9 +1004,9 @@ class AuthRateLimitingTest(TransactionTestCase):
         self.assertEqual(response.status_code, 429)
 
     def test_api_endpoints_not_affected_by_auth_rate_limit(self):
-        from scheduler.models import Project, Organization
+        from scheduler.models import Organization
         org = Organization.objects.create(name="Rate Org", slug="rate-limit-org")
-        project = Project.objects.create(
+        Project.objects.create(
             name="Rate Proj", organization=org, api_key="rate-limit-key", is_active=True,
         )
         client = APIClient()

@@ -1,8 +1,6 @@
-import time
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
 from django.core.cache import cache
-from django.conf import settings
 from .models import RateLimitRule
 
 

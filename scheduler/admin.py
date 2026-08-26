@@ -25,7 +25,7 @@ class ProjectAdmin(admin.ModelAdmin):
         if key and len(key) > 8:
             return format_html('{}...{}', key[:4], key[-4:])
         return key
-    masked_api_key.short_description = 'API Key'
+    masked_api_key.short_description = 'API Key'  # type: ignore[attr-defined]  # Django admin decorator sets short_description at runtime
 
 
 @admin.register(Queue)

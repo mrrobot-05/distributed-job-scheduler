@@ -27,7 +27,10 @@ class Organization(models.Model):
 
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='projects', null=True, blank=True)
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE,
+        related_name='projects', null=True, blank=True,
+    )
     name = models.CharField(max_length=255)
     api_key = models.CharField(max_length=255, db_index=True, unique=True)
     is_active = models.BooleanField(default=True)

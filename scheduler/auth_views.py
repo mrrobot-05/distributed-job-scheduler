@@ -1,5 +1,3 @@
-from django.contrib.auth import views as auth_views
-from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.shortcuts import render, redirect

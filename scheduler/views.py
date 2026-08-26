@@ -7,23 +7,24 @@ from .serializers import (
     WorkerRegistrationSerializer, QueueSerializer, QueueUpdateSerializer,
     WorkerSerializer, BatchJobSubmitSerializer, BatchJobSerializer,
     JobLogSerializer, DeadLetterQueueSerializer, ScheduledJobSerializer,
-    WorkflowDependencySerializer, JobExecutionSerializer
+    WorkflowDependencySerializer
 )
 from .authentication import ProjectKeyAuthentication, IsProjectAuthenticated
 from .pagination import JobPagination
 
 from functools import wraps
 from django.http import JsonResponse
+from datetime import datetime
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from .models import (
-    Project, Queue, Job, JobExecution, Worker,
+    Project, Queue, Job, Worker,
     BatchJob, JobLog, DeadLetterQueue, ScheduledJob,
     WorkflowDependency
 )
-from django.db import IntegrityError, transaction
-from django.db.models import Count, Q
+from django.db import IntegrityError
+from django.db.models import Count
 
 
 def api_key_required(f):
@@ -644,7 +645,7 @@ class ScheduledJobListView(APIView):
 
         from croniter import croniter
         iter = croniter(serializer.validated_data["cron_expression"], timezone.now())
-        next_run = iter.get_next(timezone.datetime)
+        next_run = iter.get_next(datetime)
 
         scheduled = ScheduledJob.objects.create(
             queue=queue,

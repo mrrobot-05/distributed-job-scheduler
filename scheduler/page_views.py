@@ -1,15 +1,15 @@
 import secrets
+from datetime import datetime
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy, reverse
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
-from django.http import JsonResponse
 from django.views import View
 from django.utils import timezone
 from django.db.models import Count, Q
 
-from scheduler.models import Project, Queue, Job, Worker, ScheduledJob, BatchJob, DeadLetterQueue, JobExecution, JobLog
+from scheduler.models import Project, Queue, Job, Worker, ScheduledJob, BatchJob, DeadLetterQueue, JobLog
 
 
 class ProjectListView(LoginRequiredMixin, ListView):
@@ -19,7 +19,7 @@ class ProjectListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return Project.objects.filter(organization__user=self.request.user).select_related('organization').annotate(
+        return Project.objects.filter(organization__user=self.request.user).select_related('organization').annotate(  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
             queue_count=Count('queues'),
             job_count=Count('queues__jobs')
         ).order_by('-created_at')
@@ -35,7 +35,10 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         from scheduler.models import Organization
         org, created = Organization.objects.get_or_create(
             user=self.request.user,
-            defaults={'name': f"{self.request.user.username}'s Organization", 'slug': f"{self.request.user.username}-org"}
+            defaults={
+                'name': f"{self.request.user.username}'s Organization",
+                'slug': f"{self.request.user.username}-org",
+            }
         )
         form.instance.organization = org
         form.instance.api_key = secrets.token_urlsafe(32)
@@ -49,7 +52,7 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'project'
 
     def get_queryset(self):
-        return Project.objects.filter(organization__user=self.request.user).prefetch_related('queues')
+        return Project.objects.filter(organization__user=self.request.user).prefetch_related('queues')  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -69,7 +72,7 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('project_list')
 
     def get_queryset(self):
-        return Project.objects.filter(organization__user=self.request.user)
+        return Project.objects.filter(organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
 
     def form_valid(self, form):
         messages.success(self.request, 'Project updated successfully!')
@@ -114,7 +117,10 @@ class QueueCreateView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'], organization__user=self.request.user)
+        context['project'] = get_object_or_404(
+            Project, pk=self.kwargs['project_pk'],
+            organization__user=self.request.user,
+        )
         context['is_create'] = True
         return context
 
@@ -125,7 +131,7 @@ class QueueDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'queue'
 
     def get_queryset(self):
-        return Queue.objects.filter(project__organization__user=self.request.user).select_related('project')
+        return Queue.objects.filter(project__organization__user=self.request.user).select_related('project')  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -136,8 +142,8 @@ class QueueDetailView(LoginRequiredMixin, DetailView):
             running_count=Count('jobs', filter=Q(jobs__status='RUNNING')),
         ).first()
         context['queue'] = queue
-        context['jobs'] = queue.jobs.select_related('queue').order_by('-created_at')[:50]
-        context['job_stats'] = queue.jobs.values('status').annotate(count=Count('id'))
+        context['jobs'] = queue.jobs.select_related('queue').order_by('-created_at')[:50]  # type: ignore[union-attr]  # first() guaranteed by queryset context
+        context['job_stats'] = queue.jobs.values('status').annotate(count=Count('id'))  # type: ignore[union-attr]  # first() guaranteed by queryset context
         return context
 
 
@@ -147,7 +153,7 @@ class QueueUpdateView(LoginRequiredMixin, UpdateView):
     fields = ['name', 'priority', 'concurrency_limit', 'is_paused', 'retry_policy']
 
     def get_queryset(self):
-        return Queue.objects.filter(project__organization__user=self.request.user)
+        return Queue.objects.filter(project__organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
 
     def get_success_url(self):
         return reverse('queue_detail_page', kwargs={'pk': self.object.pk})
@@ -187,7 +193,11 @@ class JobDetailPageView(LoginRequiredMixin, DetailView):
     context_object_name = 'job'
 
     def get_queryset(self):
-        return Job.objects.filter(queue__project__organization__user=self.request.user).select_related('queue', 'queue__project').prefetch_related('executions__logs')
+        return Job.objects.filter(
+            queue__project__organization__user=self.request.user,  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        ).select_related(
+            'queue', 'queue__project',
+        ).prefetch_related('executions__logs')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -203,7 +213,7 @@ class JobRetryView(LoginRequiredMixin, View):
         if job.status not in ['FAILED', 'DLQ']:
             messages.error(request, 'Only failed or DLQ jobs can be retried.')
             return redirect('job_detail_page', pk=pk)
-        
+
         job.status = 'QUEUED'
         job.retry_count = 0
         job.scheduled_at = timezone.now()
@@ -219,7 +229,7 @@ class JobCancelView(LoginRequiredMixin, View):
         if job.status not in ['QUEUED', 'SCHEDULED', 'CLAIMED']:
             messages.error(request, 'Only queued, scheduled, or claimed jobs can be cancelled.')
             return redirect('job_detail_page', pk=pk)
-        
+
         job.status = 'FAILED'
         job.save()
         messages.success(request, 'Job cancelled.')
@@ -233,7 +243,7 @@ class WorkerListPageView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return Worker.objects.filter(project__organization__user=self.request.user).select_related('project').annotate(
+        return Worker.objects.filter(project__organization__user=self.request.user).select_related('project').annotate(  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
             execution_count=Count('executions')
         ).order_by('-last_heartbeat')
 
@@ -245,17 +255,24 @@ class ScheduledJobListPageView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return ScheduledJob.objects.filter(queue__project__organization__user=self.request.user).select_related('queue', 'queue__project').order_by('next_run_at')
+        return ScheduledJob.objects.filter(
+            queue__project__organization__user=self.request.user,  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        ).select_related(
+            'queue', 'queue__project',
+        ).order_by('next_run_at')
 
 
 class ScheduledJobCreateView(LoginRequiredMixin, CreateView):
     model = ScheduledJob
     template_name = 'scheduler/scheduled/form.html'
-    fields = ['queue', 'name', 'payload', 'cron_expression', 'max_retries', 'backoff_strategy', 'backoff_delay', 'is_active']
+    fields = [
+        'queue', 'name', 'payload', 'cron_expression',
+        'max_retries', 'backoff_strategy', 'backoff_delay', 'is_active',
+    ]
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['queue'].queryset = Queue.objects.filter(project__organization__user=self.request.user)
+        form.fields['queue'].queryset = Queue.objects.filter(project__organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
         return form
 
     def get_success_url(self):
@@ -263,7 +280,7 @@ class ScheduledJobCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         from croniter import croniter
-        form.instance.next_run_at = croniter(form.instance.cron_expression, timezone.now()).get_next(timezone.datetime)
+        form.instance.next_run_at = croniter(form.instance.cron_expression, timezone.now()).get_next(datetime)
         messages.success(self.request, 'Scheduled job created successfully!')
         return super().form_valid(form)
 
@@ -279,20 +296,25 @@ class ScheduledJobDetailPageView(LoginRequiredMixin, DetailView):
     context_object_name = 'scheduled_job'
 
     def get_queryset(self):
-        return ScheduledJob.objects.filter(queue__project__organization__user=self.request.user).select_related('queue', 'queue__project')
+        return ScheduledJob.objects.filter(
+            queue__project__organization__user=self.request.user,  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        ).select_related('queue', 'queue__project')
 
 
 class ScheduledJobUpdateView(LoginRequiredMixin, UpdateView):
     model = ScheduledJob
     template_name = 'scheduler/scheduled/form.html'
-    fields = ['queue', 'name', 'payload', 'cron_expression', 'max_retries', 'backoff_strategy', 'backoff_delay', 'is_active']
+    fields = [
+        'queue', 'name', 'payload', 'cron_expression',
+        'max_retries', 'backoff_strategy', 'backoff_delay', 'is_active',
+    ]
 
     def get_queryset(self):
-        return ScheduledJob.objects.filter(queue__project__organization__user=self.request.user)
+        return ScheduledJob.objects.filter(queue__project__organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['queue'].queryset = Queue.objects.filter(project__organization__user=self.request.user)
+        form.fields['queue'].queryset = Queue.objects.filter(project__organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
         return form
 
     def get_success_url(self):
@@ -301,7 +323,9 @@ class ScheduledJobUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         from croniter import croniter
         if 'cron_expression' in form.changed_data:
-            form.instance.next_run_at = croniter(form.instance.cron_expression, timezone.now()).get_next(timezone.datetime)
+            form.instance.next_run_at = croniter(
+                form.instance.cron_expression, timezone.now(),
+            ).get_next(datetime)
         messages.success(self.request, 'Scheduled job updated successfully!')
         return super().form_valid(form)
 
@@ -326,8 +350,10 @@ class BatchJobPageView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['queues'] = Queue.objects.filter(project__organization__user=self.request.user)
-        context['batch_jobs'] = BatchJob.objects.filter(project__organization__user=self.request.user).order_by('-created_at')[:20]
+        context['queues'] = Queue.objects.filter(project__organization__user=self.request.user)  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        context['batch_jobs'] = BatchJob.objects.filter(
+            project__organization__user=self.request.user,  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        ).order_by('-created_at')[:20]
         return context
 
 
@@ -337,16 +363,16 @@ class BatchJobSubmitView(LoginRequiredMixin, View):
         name = request.POST.get('name')
         job_names = request.POST.getlist('job_names[]')
         job_payloads = request.POST.getlist('job_payloads[]')
-        
+
         queue = get_object_or_404(Queue, pk=queue_id, project__organization__user=request.user)
-        
+
         batch = BatchJob.objects.create(
             project=queue.project,
             name=name,
             total_jobs=len(job_names),
             status='PENDING'
         )
-        
+
         for i, (name, payload) in enumerate(zip(job_names, job_payloads)):
             if name.strip():
                 import json
@@ -358,7 +384,7 @@ class BatchJobSubmitView(LoginRequiredMixin, View):
                     scheduled_at=timezone.now(),
                     batch_id=batch.id
                 )
-        
+
         batch.status = 'PARTIAL'
         batch.save()
         messages.success(request, f'Batch job created with {len(job_names)} jobs.')
@@ -372,23 +398,27 @@ class DLQPageView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return DeadLetterQueue.objects.filter(job__queue__project__organization__user=self.request.user).select_related('job', 'job__queue', 'job__queue__project').order_by('-created_at')
+        return DeadLetterQueue.objects.filter(
+            job__queue__project__organization__user=self.request.user,  # type: ignore[misc]  # LoginRequiredMixin guarantees authenticated User
+        ).select_related(
+            'job', 'job__queue', 'job__queue__project',
+        ).order_by('-created_at')
 
 
 class DLQRetryView(LoginRequiredMixin, View):
     def post(self, request, pk):
         dlq_entry = get_object_or_404(DeadLetterQueue, pk=pk, job__queue__project__organization__user=request.user)
         job = dlq_entry.job
-        
+
         job.status = 'QUEUED'
         job.retry_count = 0
         job.scheduled_at = timezone.now()
         job.save()
-        
+
         dlq_entry.resolved_at = timezone.now()
         dlq_entry.resolved_by = 'user'
         dlq_entry.resolution_notes = 'Retried via UI'
         dlq_entry.save()
-        
+
         messages.success(request, 'Job re-queued for execution.')
         return redirect('dlq_page')

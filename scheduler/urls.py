@@ -19,7 +19,7 @@ from .page_views import (
     JobDetailPageView, JobRetryView, JobCancelView,
     WorkerListPageView, ScheduledJobListPageView, ScheduledJobCreateView,
     ScheduledJobDetailPageView, ScheduledJobUpdateView, ScheduledJobToggleView,
-    BatchJobPageView, BatchJobSubmitView as PageBatchJobSubmitView, DLQPageView, DLQRetryView,
+    BatchJobPageView, DLQPageView, DLQRetryView,
 )
 
 urlpatterns = [

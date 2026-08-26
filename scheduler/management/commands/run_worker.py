@@ -1,15 +1,14 @@
-import time
 import socket
-import uuid
 import logging
 import signal
 import threading
+from datetime import datetime, timedelta
 from croniter import croniter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Count, F
+from django.db.models import Count
 from scheduler.models import Job, Queue, Worker, JobExecution, Project, JobLog, BatchJob, DeadLetterQueue, ScheduledJob
 from scheduler.handlers import execute_handler
 
@@ -30,7 +29,7 @@ class DistributedLock:
         if connection.vendor == 'sqlite':
             self.acquired = True
             return True
-        
+
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT pg_try_advisory_lock(%s)",
@@ -75,9 +74,18 @@ class Command(BaseCommand):
         self.concurrency = 5
 
     def add_arguments(self, parser):
-        parser.add_argument('--concurrency', type=int, default=5, help='Number of concurrent threads')
-        parser.add_argument('--project_key', type=str, required=True, help='API key of the project this worker belongs to')
-        parser.add_argument('--queues', type=str, default='', help='Comma-separated list of queue names to process (empty = all)')
+        parser.add_argument(
+            '--concurrency', type=int, default=5,
+            help='Number of concurrent threads',
+        )
+        parser.add_argument(
+            '--project_key', type=str, required=True,
+            help='API key of the project this worker belongs to',
+        )
+        parser.add_argument(
+            '--queues', type=str, default='',
+            help='Comma-separated list of queue names to process (empty = all)',
+        )
 
     def handle(self, *args, **options):
         self.concurrency = options['concurrency']
@@ -146,11 +154,13 @@ class Command(BaseCommand):
     def handle_shutdown(self, signum, frame):
         self.stdout.write(self.style.WARNING('Shutdown signal received...'))
         self.shutdown = True
+        assert self.worker is not None  # set in handle() before any signal handler runs
         self.worker.status = 'SHUTTING_DOWN'
         self.worker.save()
         self.shutdown_event.set()
 
     def update_heartbeat(self):
+        assert self.worker is not None  # set in handle() before calling update_heartbeat
         self.worker.last_heartbeat = timezone.now()
         self.worker.current_jobs = self.active_jobs
         self.worker.save(update_fields=['last_heartbeat', 'current_jobs', 'updated_at'])
@@ -226,6 +236,7 @@ class Command(BaseCommand):
             pass  # active_jobs decremented in check_completed_futures
 
     def execute_job(self, job):
+        assert self.worker is not None  # set in handle() before calling execute_job
         execution = JobExecution.objects.create(
             job=job,
             worker=self.worker,
@@ -257,7 +268,7 @@ class Command(BaseCommand):
             JobLog.objects.create(
                 execution=execution,
                 level='INFO',
-                message=f'Job completed successfully',
+                message='Job completed successfully',
                 meta={'result': str(result)[:500]}
             )
 
@@ -306,7 +317,7 @@ class Command(BaseCommand):
             # Handle recurring jobs - reschedule
             job.status = 'SCHEDULED'
             iter = croniter(job.cron_expression, timezone.now())
-            job.scheduled_at = iter.get_next(timezone.datetime)
+            job.scheduled_at = iter.get_next(datetime)
             job.retry_count = 0  # Reset retry count for next run
         else:
             job.status = 'COMPLETED'
@@ -329,7 +340,7 @@ class Command(BaseCommand):
             elif backoff_strategy == 'EXPONENTIAL':
                 delay = backoff_delay * (2 ** (job.retry_count - 1))
 
-            job.scheduled_at = timezone.now() + timezone.timedelta(seconds=delay)
+            job.scheduled_at = timezone.now() + timedelta(seconds=delay)
 
             JobLog.objects.create(
                 execution=execution,
@@ -357,7 +368,7 @@ class Command(BaseCommand):
 
     def cleanup_dead_workers(self):
         # Mark workers as DEAD if no heartbeat for 5 minutes
-        timeout = timezone.now() - timezone.timedelta(minutes=5)
+        timeout = timezone.now() - timedelta(minutes=5)
         dead_workers = Worker.objects.filter(last_heartbeat__lt=timeout).exclude(status='DEAD')
 
         for dw in dead_workers:
@@ -368,7 +379,7 @@ class Command(BaseCommand):
             latest_execution_subquery = JobExecution.objects.filter(
                 job=OuterRef('pk')
             ).order_by('-started_at').values('worker_id')[:1]
-            
+
             Job.objects.filter(
                 status__in=['CLAIMED', 'RUNNING']
             ).annotate(
@@ -389,7 +400,7 @@ class Command(BaseCommand):
         for scheduled in due_scheduled:
             # Use distributed lock to avoid duplicate creation
             lock_id = hash(f"scheduled_{scheduled.id}") % 2147483647
-            with DistributedLock(lock_id, timeout=5) as lock:
+            with DistributedLock(lock_id, timeout=5) as _lock:
                 # Double-check after acquiring lock
                 scheduled.refresh_from_db()
                 if scheduled.next_run_at > now:
@@ -410,7 +421,7 @@ class Command(BaseCommand):
 
                 # Update next run time
                 iter = croniter(scheduled.cron_expression, now)
-                scheduled.next_run_at = iter.get_next(timezone.datetime)
+                scheduled.next_run_at = iter.get_next(datetime)
                 scheduled.save(update_fields=['next_run_at', 'updated_at'])
 
                 logger.info(f"Created scheduled job {job.id} from ScheduledJob {scheduled.id}")
