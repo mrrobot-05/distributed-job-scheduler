@@ -42,7 +42,7 @@ A production-ready distributed job scheduling platform built with Django and Pos
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/mrrobot-05/distributed-job-scheduler.git
 cd distributed-job-scheduler
 
 # Create virtual environment
